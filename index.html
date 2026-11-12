@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>:root{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>おさいふカレンダー</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="家計簿">
+<style>
+/* Layout: iOS Calendar month view — sticky header, 7-col grid, day agenda + balances below, bottom sheets for input */
+:root{
+  --bg:#ffffff; --surface:#f2f2f7; --card:#ffffff; --line:#e3e3e8;
+  --fg:#111114; --sub:#8a8a92; --today:#ff3b30; --sel:#111114; --selfg:#ffffff;
+  --out:#e5484d; --in:#2f9e5b; --move:#3a7bd5; --plan:#b07a12; --planbg:#fff4dc;
+  --accent:#ff3b30; --scrim:rgba(0,0,0,.32);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#000000; --surface:#1c1c1e; --card:#1c1c1e; --line:#2c2c2e;
+  --fg:#f5f5f7; --sub:#8e8e93; --today:#ff453a; --sel:#f5f5f7; --selfg:#000000;
+  --out:#ff6b6b; --in:#4cc47c; --move:#6aa2ff; --plan:#e0a93a; --planbg:#3a2c0f;
+  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#000000; --surface:#1c1c1e; --card:#1c1c1e; --line:#2c2c2e;
+  --fg:#f5f5f7; --sub:#8e8e93; --today:#ff453a; --sel:#f5f5f7; --selfg:#000000;
+  --out:#ff6b6b; --in:#4cc47c; --move:#6aa2ff; --plan:#e0a93a; --planbg:#3a2c0f;
+  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:560px;margin:0 auto}
+.pad{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;justify-content:space-between;padding-block:10px 4px}
+.bar .tbtn{color:var(--accent);font-size:16px;padding:6px 2px}
+.bar .icons{display:flex;gap:18px;align-items:center}
+.plus{font-size:28px;line-height:1;color:var(--accent);font-weight:300}
+.gear{width:22px;height:22px;color:var(--accent)}
+.titlerow{display:flex;align-items:baseline;justify-content:space-between;padding-block:2px 8px}
+.title{font-size:30px;font-weight:700;letter-spacing:.01em}
+.title small{font-size:15px;font-weight:600;color:var(--sub);margin-left:6px}
+.nav{display:flex;gap:6px}
+.nav button{width:34px;height:34px;border-radius:50%;color:var(--accent);font-size:20px}
+.nav button:active{background:var(--surface)}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);font-size:11px;color:var(--sub);text-align:center;padding-block:0 6px}
+.dow span:first-child,.dow span:last-child{color:var(--sub);opacity:.75}
+
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-block:12px 4px}
+.sum{display:flex;flex-direction:column;gap:2px}
+.sum b{font-size:11px;font-weight:500;color:var(--sub);letter-spacing:.04em}
+.sum span{font-size:17px;font-weight:600}
+.planline{font-size:12px;color:var(--plan);padding-block:2px 6px;min-height:18px}
+
+.grid{display:grid;grid-template-columns:repeat(7,1fr);touch-action:pan-y}
+.cell{min-height:64px;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 1px 4px;min-width:0;text-align:center}
+.cell.blank{pointer-events:none}
+.dnum{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:16px}
+.cell.wkend .dnum{color:var(--sub)}
+.cell.today .dnum{color:var(--today);font-weight:700}
+.cell.sel .dnum{background:var(--sel);color:var(--selfg);font-weight:600}
+.cell.sel.today .dnum{background:var(--today);color:#fff}
+.amt{font-size:9.5px;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.amt.o{color:var(--out)} .amt.i{color:var(--in)}
+.amt.p{color:var(--plan)}
+.dots{display:flex;gap:3px;height:6px;align-items:center}
+.dot{width:5px;height:5px;border-radius:50%}
+.dot.m{background:var(--move)} .dot.p{border:1.3px solid var(--plan)}
+
+.section{padding-block:18px 4px}
+.shead{display:flex;justify-content:space-between;align-items:baseline;padding-block:0 8px}
+.shead h2{font-size:17px;margin:0;font-weight:700}
+.shead .meta{font-size:13px;color:var(--sub)}
+.list{background:var(--surface);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line);width:100%;text-align:left}
+.row:first-child{border-top:0}
+.row:active{background:var(--line)}
+.ico{flex:none;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff}
+.ico.expense{background:var(--out)} .ico.income{background:var(--in)} .ico.transfer{background:var(--move)}
+.rmain{flex:1;min-width:0}
+.rtitle{font-weight:600;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rsub{font-size:12.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ramt{font-weight:600;white-space:nowrap}
+.ramt.expense{color:var(--out)} .ramt.income{color:var(--in)} .ramt.transfer{color:var(--move)}
+.pill{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:99px;background:var(--planbg);color:var(--plan)}
+.confirm{font-size:12px;color:var(--accent);font-weight:600;padding:4px 0}
+.empty{padding:22px 16px;color:var(--sub);text-align:center;font-size:14px;line-height:1.6}
+.empty button{color:var(--accent);font-weight:600}
+.bal{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-top:1px solid var(--line)}
+.bal:first-child{border-top:0}
+.bal .bn{font-weight:600}
+.bal .bv{text-align:right}
+.bal .bv div:first-child{font-weight:600;font-size:16px}
+.bal .bv div:last-child{font-size:11.5px;color:var(--plan)}
+.note{font-size:12px;color:var(--sub);text-align:center;padding-block:18px 28px;line-height:1.6}
+
+/* sheets */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:20;opacity:0;transition:opacity .2s}
+.scrim.on{opacity:1}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--bg);border-radius:14px 14px 0 0;max-height:92%;overflow:auto;
+  padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateY(100%);transition:transform .25s ease}
+.sheet.on{transform:none}
+@media (prefers-reduced-motion:reduce){.sheet,.scrim{transition:none}}
+.sheet .in{max-width:560px;margin:0 auto}
+.sbar{display:flex;justify-content:space-between;align-items:center;padding-block:14px 8px}
+.sbar h3{margin:0;font-size:16px}
+.sbar button{color:var(--accent);font-size:16px}
+.sbar .save{font-weight:700}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-radius:9px;padding:2px;gap:2px;margin-block:4px 14px}
+.seg button{padding:7px 0;border-radius:7px;font-size:14px;font-weight:600;color:var(--sub)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+:root[data-theme="dark"] .seg button[aria-pressed="true"]{background:#3a3a3c}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{background:#3a3a3c}}
+.amtbox{display:flex;align-items:baseline;gap:4px;border-bottom:1px solid var(--line);padding-block:4px 10px;margin-bottom:12px}
+.amtbox span{font-size:26px;color:var(--sub)}
+.amtbox input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:36px;font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums;outline:none}
+.form{background:var(--surface);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.f{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--line);min-height:46px}
+.f:first-child{border-top:0}
+.f label{flex:none;color:var(--fg)}
+.f input,.f select{font:inherit;border:0;background:none;color:var(--fg);text-align:right;min-width:0;flex:1;outline:none}
+.f select{direction:rtl}
+.f input[type="date"]{flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.chip{padding:6px 12px;border-radius:99px;background:var(--surface);font-size:13.5px}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);font-weight:600}
+.lbl{font-size:12px;color:var(--sub);margin:0 0 6px 4px;letter-spacing:.04em}
+.switch{position:relative;width:51px;height:31px;flex:none}
+.switch input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.switch i{position:absolute;inset:0;border-radius:99px;background:var(--line);transition:background .2s;pointer-events:none}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+.switch input:checked+i{background:var(--plan)}
+.switch input:checked+i::after{transform:translateX(20px)}
+.switch input:focus-visible+i{outline:2px solid var(--accent);outline-offset:2px}
+.danger{width:100%;padding:13px;border-radius:12px;background:var(--surface);color:var(--out);font-weight:600}
+.err{color:var(--out);font-size:13px;min-height:18px;margin:0 4px 8px}
+.accrow{display:grid;grid-template-columns:1fr 120px 32px;gap:8px;align-items:center;padding:8px 14px;border-top:1px solid var(--line)}
+.accrow:first-child{border-top:0}
+.accrow input{font:inherit;border:0;background:none;color:var(--fg);min-width:0;outline:none;padding:6px 0}
+.accrow input.num{text-align:right}
+.accrow button{color:var(--out);font-size:20px}
+.addacc{color:var(--accent);font-weight:600;padding:12px 14px;width:100%;text-align:left;border-top:1px solid var(--line)}
+.accrow.cat{grid-template-columns:1fr 32px}
+.shead .edit{color:var(--accent);font-size:14px;font-weight:600}
+.brk{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 14px;border-top:1px solid var(--line);align-items:baseline}
+.brk:first-child{border-top:0}
+.brk .bname{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brk .bamt{font-weight:600;text-align:right}
+.brk .bamt small{color:var(--sub);font-weight:500;margin-left:6px;font-size:12px}
+.track{grid-column:1/-1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.track i{display:block;height:100%;background:var(--out);border-radius:3px}
+.sublbl{margin-top:18px}
+.hint{font-size:12px;color:var(--sub);margin:-6px 4px 14px;line-height:1.5}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13.5px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="wrap pad">
+    <div class="bar">
+      <button class="tbtn" id="btnToday" type="button">今日</button>
+      <div class="icons">
+        <button id="btnSettings" type="button" aria-label="口座の設定">
+          <svg class="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18M16 14.5h2"/></svg>
+        </button>
+        <button class="plus" id="btnAdd" type="button" aria-label="記録を追加">＋</button>
+      </div>
+    </div>
+    <div class="titlerow">
+      <div class="title" id="title">--</div>
+      <div class="nav">
+        <button type="button" id="prev" aria-label="前の月">‹</button>
+        <button type="button" id="next" aria-label="次の月">›</button>
+      </div>
+    </div>
+    <div class="dow"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+  </div>
+</header>
+
+<main class="wrap pad">
+  <div class="summary">
+    <div class="sum"><b>収入</b><span class="num" id="sIn" style="color:var(--in)">¥0</span></div>
+    <div class="sum"><b>支出</b><span class="num" id="sOut" style="color:var(--out)">¥0</span></div>
+    <div class="sum"><b>収支</b><span class="num" id="sNet">¥0</span></div>
+  </div>
+  <div class="planline num" id="planLine"></div>
+  <div class="grid" id="grid"></div>
+
+  <section class="section">
+    <div class="shead"><h2 id="dayTitle">--</h2><span class="meta num" id="dayMeta"></span></div>
+    <div class="list" id="dayList"></div>
+  </section>
+
+  <section class="section">
+    <div class="shead"><h2 id="brkTitle">今月のジャンル別</h2><button type="button" class="edit" data-settings="cats">ジャンルを編集</button></div>
+    <div class="list" id="brkList"></div>
+  </section>
+
+  <section class="section">
+    <div class="shead"><h2>残高</h2><button type="button" class="edit" data-settings="acc">口座を編集</button></div>
+    <p class="meta" style="margin:-4px 0 8px;font-size:12px;color:var(--sub)">上が確定分、下の黄色が予定込みの残高</p>
+    <div class="list" id="balList"></div>
+  </section>
+
+  <p class="note" id="note">読み込み中…</p>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<div class="sheet" id="txSheet" role="dialog" aria-modal="true" aria-labelledby="txHead" hidden>
+  <div class="in pad">
+    <div class="sbar">
+      <button type="button" data-close>キャンセル</button>
+      <h3 id="txHead">記録を追加</h3>
+      <button type="button" class="save" id="txSave">保存</button>
+    </div>
+    <div class="seg" role="group" aria-label="種類">
+      <button type="button" data-type="expense">支出</button>
+      <button type="button" data-type="income">収入</button>
+      <button type="button" data-type="transfer">移動</button>
+    </div>
+    <div class="amtbox"><span>¥</span><input id="fAmt" inputmode="numeric" autocomplete="off" placeholder="0" aria-label="金額"></div>
+    <div id="catWrap"><p class="lbl">カテゴリ</p><div class="chips" id="cats"></div></div>
+    <div class="form">
+      <div class="f"><label for="fDate">日付</label><input type="date" id="fDate"></div>
+      <div class="f" id="rowAcc"><label for="fAcc" id="accLabel">支払い元</label><select id="fAcc"></select></div>
+      <div class="f" id="rowTo" hidden><label for="fTo">移動先</label><select id="fTo"></select></div>
+      <div class="f"><label for="fMemo">メモ</label><input id="fMemo" placeholder="なくてもOK" autocomplete="off"></div>
+      <div class="f"><label for="fPlan">予定（まだ確定していない）</label><span class="switch"><input type="checkbox" id="fPlan" role="switch"><i></i></span></div>
+    </div>
+    <p class="hint" id="moveHint" hidden>移動は収入にも支出にもカウントされません。口座の残高だけが動きます（例：現金 → 電子マネーにチャージ）。</p>
+    <p class="err" id="txErr"></p>
+    <button type="button" class="danger" id="txDel" hidden>この記録を削除</button>
+  </div>
+</div>
+
+<div class="sheet" id="accSheet" role="dialog" aria-modal="true" aria-labelledby="accHead" hidden>
+  <div class="in pad">
+    <div class="sbar">
+      <button type="button" data-close>キャンセル</button>
+      <h3 id="accHead">設定</h3>
+      <button type="button" class="save" id="accSave">保存</button>
+    </div>
+    <p class="lbl" id="secAcc">口座・おさいふ（名前 ／ はじめの残高）</p>
+    <div class="form" id="accList"></div>
+    <p class="hint">名前はタップして書き換えられます。はじめの残高に今の手持ち額を入れておくと、残高が実際の金額と合います。</p>
+    <p class="lbl sublbl" id="secCats">支出のジャンル</p>
+    <div class="form" id="catListE"></div>
+    <p class="lbl sublbl">収入のジャンル</p>
+    <div class="form" id="catListI"></div>
+    <p class="hint">ジャンルを消しても、これまでの記録はそのままの名前で残ります。</p>
+    <p class="err" id="accErr"></p>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+const DEFAULT_CATS = {
+  expense: ['食費','コンビニ','外食','日用品','交通','趣味','交際','服・美容','住まい','光熱・通信','医療','その他'].map((n,i) => ({ id: 'e' + i, name: n })),
+  income: ['給料','お小遣い','臨時収入','その他'].map((n,i) => ({ id: 'i' + i, name: n }))
+};
+const cloneCats = c => ({ expense: c.expense.map(x => ({ ...x })), income: c.income.map(x => ({ ...x })) });
+const LS_CAT = 'osaifu.cats';
+const DEFAULT_ACCOUNTS = [
+  {id:'cash', name:'現金', init:0},
+  {id:'emoney', name:'電子マネー', init:0},
+  {id:'bank', name:'銀行', init:0}
+];
+const LS_TX = 'osaifu.txs', LS_ACC = 'osaifu.accounts';
+const WD = ['日','月','火','水','木','金','土'];
+
+const $ = s => document.querySelector(s);
+const pad2 = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const yen = n => '¥' + Math.abs(Math.round(n)).toLocaleString('ja-JP');
+const sYen = n => (n < 0 ? '−' : n > 0 ? '+' : '') + yen(n);
+const short = n => { n = Math.abs(n); return n >= 100000 ? (Math.round(n/1000)/10) + '万' : n.toLocaleString('ja-JP'); };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+const now = new Date();
+const state = {
+  today: ymd(now), y: now.getFullYear(), m: now.getMonth(), sel: ymd(now),
+  txs: [], accounts: DEFAULT_ACCOUNTS.slice(), cats: cloneCats(DEFAULT_CATS), ready: false
+};
+const catName = t => (state.cats[t.type] || []).find(c => c.id === t.cat)?.name || t.category || 'その他';
+
+/* ---------- storage: private cloud db per person, browser storage as fallback ---------- */
+const store = {
+  kind: 'none',
+  async saveTx(t) {
+    const { id, ...body } = t;
+    if (this.kind === 'db') return this.txCol.doc(id).set(body);
+    const i = state.txs.findIndex(x => x.id === id);
+    if (i >= 0) state.txs[i] = t; else state.txs.push(t);
+    lsSet(LS_TX, state.txs); render();
+  },
+  async delTx(id) {
+    if (this.kind === 'db') return this.txCol.doc(id).delete();
+    state.txs = state.txs.filter(x => x.id !== id);
+    lsSet(LS_TX, state.txs); render();
+  },
+  async saveBook(accounts, cats) {
+    if (this.kind === 'db') return this.book.set({ accounts, cats });
+    state.accounts = accounts; state.cats = cats; lsSet(LS_ACC, accounts); lsSet(LS_CAT, cats); render();
+  }
+};
+
+function useLocal(msg) {
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+  store.kind = 'local';
+  state.txs = lsGet(LS_TX, []);
+  state.accounts = lsGet(LS_ACC, DEFAULT_ACCOUNTS.slice());
+  state.cats = lsGet(LS_CAT, cloneCats(DEFAULT_CATS));
+  state.ready = true;
+  $('#note').textContent = msg;
+  render();
+}
+
+async function init() {
+  render();
+  let db = null, user = null;
+  try {
+    if (window.claude?.use) [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+  } catch {}
+  let id = null;
+  try { id = user ? await user.id() : null; } catch {}
+  if (!db || !id) { useLocal('データはこのiPhoneの中に保存されています。ホーム画面のアイコンから開いてください。'); return; }
+
+  store.kind = 'db';
+  store.book = db.doc(`data/users/${id}/book`);
+  store.txCol = store.book.collection('tx');
+  let gotTx = false;
+  const timer = setTimeout(() => { if (!gotTx) $('#note').textContent = 'データに接続できません。通信状況を確認してください。'; }, 10000);
+  store.txCol.onSnapshot(snap => {
+    state.txs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!snap.metadata.fromCache) { gotTx = true; clearTimeout(timer); }
+    state.ready = true;
+    $('#note').textContent = 'データはあなた専用に保存され、ほかの人からは見えません。';
+    render();
+  }, e => { clearTimeout(timer); $('#note').textContent = '読み込めませんでした（' + e.code + '）'; });
+  store.book.onSnapshot(s => {
+    const d = s.exists ? s.data() : null;
+    if (d && Array.isArray(d.accounts) && d.accounts.length) state.accounts = d.accounts.slice();
+    if (d && d.cats && Array.isArray(d.cats.expense) && Array.isArray(d.cats.income)) state.cats = cloneCats(d.cats);
+    render();
+  }, () => {});
+}
+
+/* ---------- calculations ---------- */
+const accName = id => state.accounts.find(a => a.id === id)?.name ?? '（削除した口座）';
+function balances() {
+  const b = {};
+  state.accounts.forEach(a => b[a.id] = { now: Number(a.init) || 0, plan: Number(a.init) || 0 });
+  const add = (acc, v, planned) => {
+    if (!b[acc]) return;
+    if (!planned) b[acc].now += v;
+    b[acc].plan += v;
+  };
+  for (const t of state.txs) {
+    const a = Number(t.amount) || 0;
+    if (t.type === 'expense') add(t.account, -a, t.planned);
+    else if (t.type === 'income') add(t.account, a, t.planned);
+    else { add(t.account, -a, t.planned); add(t.to, a, t.planned); }
+  }
+  return b;
+}
+
+/* ---------- render ---------- */
+function render() {
+  const { y, m } = state;
+  const mk = `${y}-${pad2(m+1)}`;
+  $('#title').innerHTML = `${m+1}月<small>${y}年</small>`;
+
+  const byDay = {};
+  let inc = 0, out = 0, pin = 0, pout = 0;
+  for (const t of state.txs) {
+    (byDay[t.date] ||= []).push(t);
+    if (!t.date?.startsWith(mk)) continue;
+    const a = Number(t.amount) || 0;
+    if (t.type === 'income') t.planned ? pin += a : inc += a;
+    if (t.type === 'expense') t.planned ? pout += a : out += a;
+  }
+  $('#sIn').textContent = yen(inc);
+  $('#sOut').textContent = yen(out);
+  const net = inc - out;
+  $('#sNet').textContent = sYen(net);
+  $('#sNet').style.color = net < 0 ? 'var(--out)' : net > 0 ? 'var(--in)' : 'var(--fg)';
+  $('#planLine').textContent = (pin || pout) ? `予定　収入 ${yen(pin)} ／ 支出 ${yen(pout)}　→ 予定込みの収支 ${sYen(net + pin - pout)}` : '';
+
+  // grid
+  const first = new Date(y, m, 1).getDay();
+  const days = new Date(y, m+1, 0).getDate();
+  const cells = Math.ceil((first + days) / 7) * 7;
+  let h = '';
+  for (let i = 0; i < cells; i++) {
+    const d = i - first + 1;
+    if (d < 1 || d > days) { h += '<div class="cell blank"></div>'; continue; }
+    const key = `${mk}-${pad2(d)}`;
+    const list = byDay[key] || [];
+    let o = 0, n = 0, po = 0, pn = 0, mv = false, anyPlan = false;
+    for (const t of list) {
+      const a = Number(t.amount) || 0;
+      if (t.planned) anyPlan = true;
+      if (t.type === 'expense') t.planned ? po += a : o += a;
+      else if (t.type === 'income') t.planned ? pn += a : n += a;
+      else mv = true;
+    }
+    const cls = ['cell'];
+    if (i % 7 === 0 || i % 7 === 6) cls.push('wkend');
+    if (key === state.today) cls.push('today');
+    if (key === state.sel) cls.push('sel');
+    let lines = '';
+    if (o) lines += `<div class="amt o num">-${short(o)}</div>`;
+    if (n) lines += `<div class="amt i num">+${short(n)}</div>`;
+    if (po) lines += `<div class="amt p num">-${short(po)}</div>`;
+    if (pn) lines += `<div class="amt p num">+${short(pn)}</div>`;
+    const dots = (mv ? '<span class="dot m"></span>' : '') + (anyPlan && !po && !pn ? '<span class="dot p"></span>' : '');
+    h += `<button type="button" class="${cls.join(' ')}" data-day="${key}" aria-label="${m+1}月${d}日${list.length ? '、' + list.length + '件' : ''}">
+      <span class="dnum num">${d}</span>${lines}<span class="dots">${dots}</span></button>`;
+  }
+  $('#grid').innerHTML = h;
+
+  // day list
+  const sd = new Date(state.sel + 'T00:00:00');
+  $('#dayTitle').textContent = `${sd.getMonth()+1}月${sd.getDate()}日（${WD[sd.getDay()]}）` + (state.sel === state.today ? ' 今日' : '');
+  const dl = (byDay[state.sel] || []).slice().sort((a,b) => (a.created||0) - (b.created||0));
+  let dOut = 0, dIn = 0;
+  dl.forEach(t => { if (t.type === 'expense') dOut += +t.amount || 0; if (t.type === 'income') dIn += +t.amount || 0; });
+  $('#dayMeta').textContent = dl.length ? [dIn && '収入 ' + yen(dIn), dOut && '支出 ' + yen(dOut)].filter(Boolean).join('　') : '';
+  if (!state.ready) {
+    $('#dayList').innerHTML = '<div class="empty">読み込み中…</div>';
+  } else if (!dl.length) {
+    $('#dayList').innerHTML = `<div class="empty">この日の記録はまだありません。<br><button type="button" data-add>＋ 記録を追加</button></div>`;
+  } else {
+    $('#dayList').innerHTML = dl.map(t => {
+      const a = Number(t.amount) || 0;
+      const isT = t.type === 'transfer';
+      const title = isT ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : esc(catName(t));
+      const sub = isT ? (t.memo ? esc(t.memo) : '移動') : [esc(accName(t.account)), t.memo && esc(t.memo)].filter(Boolean).join(' ・ ');
+      const icon = t.type === 'expense' ? '−' : t.type === 'income' ? '+' : '⇄';
+      const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '';
+      return `<div class="row" role="button" tabindex="0" data-edit="${esc(t.id)}">
+        <span class="ico ${t.type}">${icon}</span>
+        <span class="rmain"><span class="rtitle">${title}${t.planned ? '<span class="pill">予定</span>' : ''}</span>
+          <span class="rsub" style="display:block">${sub}</span></span>
+        <span style="text-align:right"><div class="ramt num ${t.type}">${sign}${yen(a)}</div>
+          ${t.planned ? `<button type="button" class="confirm" data-confirm="${esc(t.id)}">確定する</button>` : ''}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // category breakdown (confirmed expenses this month)
+  const byCat = {};
+  let tot = 0;
+  for (const t of state.txs) {
+    if (t.type !== 'expense' || t.planned || !t.date?.startsWith(mk)) continue;
+    const a = Number(t.amount) || 0, n = catName(t);
+    byCat[n] = (byCat[n] || 0) + a; tot += a;
+  }
+  $('#brkTitle').textContent = `${m+1}月のジャンル別支出`;
+  const rows = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
+  const max = rows[0]?.[1] || 1;
+  $('#brkList').innerHTML = rows.length ? rows.map(([n, a]) => `<div class="brk">
+      <span class="bname">${esc(n)}</span>
+      <span class="bamt num">${yen(a)}<small>${Math.round(a / tot * 100)}%</small></span>
+      <span class="track"><i style="width:${Math.max(2, a / max * 100)}%"></i></span></div>`).join('')
+    : '<div class="empty">この月の確定した支出はまだありません。</div>';
+
+  // balances
+  const b = balances();
+  $('#balList').innerHTML = state.accounts.map(a => {
+    const v = b[a.id] || { now: 0, plan: 0 };
+    const diff = v.plan !== v.now;
+    return `<div class="bal"><span class="bn">${esc(a.name)}</span>
+      <span class="bv num"><div style="color:${v.now < 0 ? 'var(--out)' : 'var(--fg)'}">${v.now < 0 ? '−' : ''}${yen(v.now)}</div>
+      <div>${diff ? '予定込み ' + (v.plan < 0 ? '−' : '') + yen(v.plan) : ''}</div></span></div>`;
+  }).join('') || '<div class="empty">口座がありません。右上のおさいふアイコンから追加してください。</div>';
+}
+
+/* ---------- navigation ---------- */
+function shiftMonth(delta) {
+  const d = new Date(state.y, state.m + delta, 1);
+  state.y = d.getFullYear(); state.m = d.getMonth();
+  const keep = new Date(state.sel + 'T00:00:00');
+  const last = new Date(state.y, state.m + 1, 0).getDate();
+  state.sel = ymd(new Date(state.y, state.m, Math.min(keep.getDate(), last)));
+  if (state.y === now.getFullYear() && state.m === now.getMonth()) state.sel = state.today;
+  render();
+}
+$('#prev').onclick = () => shiftMonth(-1);
+$('#next').onclick = () => shiftMonth(1);
+$('#btnToday').onclick = () => { state.y = now.getFullYear(); state.m = now.getMonth(); state.sel = state.today; render(); };
+$('#grid').addEventListener('click', e => {
+  const c = e.target.closest('[data-day]'); if (!c) return;
+  if (state.sel === c.dataset.day) { openTx(); return; } // 2回タップで追加
+  state.sel = c.dataset.day; render();
+});
+let tx0 = null;
+$('#grid').addEventListener('touchstart', e => { tx0 = [e.touches[0].clientX, e.touches[0].clientY]; }, { passive: true });
+$('#grid').addEventListener('touchend', e => {
+  if (!tx0) return;
+  const dx = e.changedTouches[0].clientX - tx0[0], dy = e.changedTouches[0].clientY - tx0[1];
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftMonth(dx < 0 ? 1 : -1);
+  tx0 = null;
+});
+
+/* ---------- sheets ---------- */
+const stack = [];
+function show(el) {
+  stack.push(el);
+  $('#scrim').style.zIndex = 20 + stack.length * 2;
+  el.style.zIndex = 21 + stack.length * 2;
+  $('#scrim').hidden = false; el.hidden = false;
+  requestAnimationFrame(() => { $('#scrim').classList.add('on'); el.classList.add('on'); });
+}
+function hide() {
+  const el = stack.pop(); if (!el) return;
+  el.classList.remove('on');
+  setTimeout(() => { el.hidden = true; }, 220);
+  if (stack.length) {
+    $('#scrim').style.zIndex = 20 + stack.length * 2;
+    if (stack[stack.length - 1] === $('#txSheet')) paintForm();
+  } else {
+    $('#scrim').classList.remove('on');
+    setTimeout(() => { if (!stack.length) $('#scrim').hidden = true; }, 220);
+  }
+}
+$('#scrim').onclick = hide;
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = hide);
+document.addEventListener('click', e => { const s = e.target.closest('[data-settings]'); if (s) openSettings(s.dataset.settings); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 1600);
+}
+
+/* tx form */
+let ed = null, planTouched = false, delArmed = false;
+function accOptions(sel, exclude) {
+  return state.accounts.filter(a => a.id !== exclude).map(a => `<option value="${esc(a.id)}"${a.id === sel ? ' selected' : ''}>${esc(a.name)}</option>`).join('');
+}
+function paintForm() {
+  document.querySelectorAll('.seg [data-type]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.type === ed.type)));
+  const isT = ed.type === 'transfer';
+  $('#catWrap').hidden = isT;
+  $('#rowTo').hidden = !isT;
+  $('#moveHint').hidden = !isT;
+  $('#accLabel').textContent = isT ? '移動元' : ed.type === 'income' ? '入金先' : '支払い元';
+  if (!isT) {
+    const cats = state.cats[ed.type];
+    if (!cats.some(c => c.id === ed.cat)) ed.cat = cats[0]?.id;
+    $('#cats').innerHTML = cats.map(c => `<button type="button" class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id === ed.cat}">${esc(c.name)}</button>`).join('')
+      + '<button type="button" class="chip" data-settings="cats" style="color:var(--accent)">＋ 編集</button>';
+  }
+  $('#fAcc').innerHTML = accOptions(ed.account);
+  if (!state.accounts.some(a => a.id === ed.account)) ed.account = state.accounts[0]?.id;
+  $('#fAcc').value = ed.account ?? '';
+  if (isT) {
+    if (!ed.to || ed.to === ed.account || !state.accounts.some(a => a.id === ed.to)) ed.to = state.accounts.find(a => a.id !== ed.account)?.id;
+    $('#fTo').innerHTML = accOptions(ed.to, ed.account);
+    $('#fTo').value = ed.to ?? '';
+  }
+  $('#fPlan').checked = !!ed.planned;
+}
+function openTx(t) {
+  delArmed = false; planTouched = !!t;
+  ed = t ? { ...t } : { id: null, type: 'expense', amount: '', date: state.sel, cat: state.cats.expense[0]?.id,
+    account: state.accounts[0]?.id, to: null, memo: '', planned: state.sel > state.today };
+  if (t && t.type !== 'transfer' && !(state.cats[t.type] || []).some(c => c.id === t.cat))
+    ed.cat = (state.cats[t.type] || []).find(c => c.name === t.category)?.id;
+  $('#txHead').textContent = t ? '記録を編集' : '記録を追加';
+  $('#fAmt').value = ed.amount ? Number(ed.amount).toLocaleString('ja-JP') : '';
+  $('#fDate').value = ed.date;
+  $('#fMemo').value = ed.memo || '';
+  $('#txErr').textContent = '';
+  $('#txDel').hidden = !t; $('#txDel').textContent = 'この記録を削除';
+  paintForm();
+  show($('#txSheet'));
+  if (!t) setTimeout(() => $('#fAmt').focus(), 260);
+}
+document.querySelectorAll('.seg [data-type]').forEach(b => b.onclick = () => { ed.type = b.dataset.type; paintForm(); });
+$('#cats').addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { ed.cat = c.dataset.cat; paintForm(); } });
+$('#fAmt').addEventListener('input', e => {
+  const d = e.target.value.replace(/[^\d０-９]/g, '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  e.target.value = d ? Number(d).toLocaleString('ja-JP') : '';
+});
+$('#fAcc').onchange = e => { ed.account = e.target.value; if (ed.type === 'transfer') paintForm(); };
+$('#fTo').onchange = e => { ed.to = e.target.value; };
+$('#fDate').onchange = e => { ed.date = e.target.value; if (!planTouched) { ed.planned = ed.date > state.today; $('#fPlan').checked = ed.planned; } };
+$('#fPlan').onchange = e => { planTouched = true; ed.planned = e.target.checked; };
+
+$('#txSave').onclick = async () => {
+  const amount = Number($('#fAmt').value.replace(/[^\d]/g, ''));
+  ed.date = $('#fDate').value; ed.memo = $('#fMemo').value.trim().slice(0, 200);
+  if (!amount) { $('#txErr').textContent = '金額を入れてください。'; return; }
+  if (!ed.date) { $('#txErr').textContent = '日付を選んでください。'; return; }
+  if (!ed.account) { $('#txErr').textContent = '口座がありません。先に口座を追加してください。'; return; }
+  if (ed.type === 'transfer' && (!ed.to || ed.to === ed.account)) { $('#txErr').textContent = '移動先には移動元と別の口座を選んでください。'; return; }
+  const t = { id: ed.id || uid(), type: ed.type, amount, date: ed.date, account: ed.account, memo: ed.memo,
+    planned: !!ed.planned, created: ed.created || Date.now() };
+  if (ed.type === 'transfer') t.to = ed.to;
+  else {
+    const c = state.cats[ed.type].find(x => x.id === ed.cat);
+    if (!c) { $('#txErr').textContent = 'ジャンルを選んでください。'; return; }
+    t.cat = c.id; t.category = c.name;
+  }
+  try {
+    await store.saveTx(t);
+    const d = new Date(t.date + 'T00:00:00');
+    state.y = d.getFullYear(); state.m = d.getMonth(); state.sel = t.date;
+    hide(); render(); toast(ed.id ? '更新しました' : '追加しました');
+  } catch (e) { $('#txErr').textContent = '保存できませんでした。もう一度お試しください。'; }
+};
+$('#txDel').onclick = async () => {
+  if (!delArmed) { delArmed = true; $('#txDel').textContent = 'もう一度タップで削除'; return; }
+  try { await store.delTx(ed.id); hide(); toast('削除しました'); }
+  catch { $('#txErr').textContent = '削除できませんでした。'; }
+};
+
+$('#btnAdd').onclick = () => openTx();
+$('#dayList').addEventListener('click', async e => {
+  if (e.target.closest('[data-add]')) { openTx(); return; }
+  const c = e.target.closest('[data-confirm]');
+  if (c) {
+    e.stopPropagation();
+    const t = state.txs.find(x => x.id === c.dataset.confirm);
+    if (t) { try { await store.saveTx({ ...t, planned: false }); toast('確定しました'); } catch { toast('保存できませんでした'); } }
+    return;
+  }
+  const r = e.target.closest('[data-edit]');
+  if (r) { const t = state.txs.find(x => x.id === r.dataset.edit); if (t) openTx(t); }
+});
+$('#dayList').addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-edit]')) { e.preventDefault(); e.target.click(); }
+});
+
+/* settings: accounts + categories */
+let accDraft = [], catDraft = null;
+function catRows(type) {
+  return catDraft[type].map((c, i) => `<div class="accrow cat">
+      <input id="cat-${type}-${i}" data-ct="${type}" data-i="${i}" value="${esc(c.name)}" placeholder="ジャンル名" aria-label="ジャンル名">
+      <button type="button" data-rmcat="${type}:${i}" aria-label="${esc(c.name)}を削除">⊖</button></div>`).join('')
+    + `<button type="button" class="addacc" data-addcat="${type}">＋ ジャンルを追加</button>`;
+}
+function paintCats() { $('#catListE').innerHTML = catRows('expense'); $('#catListI').innerHTML = catRows('income'); }
+function openSettings(focus) {
+  accDraft = state.accounts.map(a => ({ ...a }));
+  catDraft = cloneCats(state.cats);
+  $('#accErr').textContent = '';
+  paintAcc(); paintCats();
+  show($('#accSheet'));
+  const target = focus === 'cats' ? $('#secCats') : $('#secAcc');
+  setTimeout(() => target.scrollIntoView({ block: 'start', behavior: 'smooth' }), 260);
+}
+['#catListE', '#catListI'].forEach(sel => {
+  $(sel).addEventListener('input', e => { const t = e.target.dataset.ct; if (t) catDraft[t][e.target.dataset.i].name = e.target.value; });
+  $(sel).addEventListener('click', e => {
+    const add = e.target.closest('[data-addcat]');
+    if (add) {
+      const t = add.dataset.addcat;
+      catDraft[t].push({ id: (t === 'expense' ? 'e' : 'i') + uid(), name: '' });
+      paintCats(); $(`#cat-${t}-${catDraft[t].length - 1}`).focus(); return;
+    }
+    const rm = e.target.closest('[data-rmcat]');
+    if (rm) {
+      const [t, i] = rm.dataset.rmcat.split(':');
+      if (catDraft[t].length <= 1) { $('#accErr').textContent = 'ジャンルは1つ以上必要です。'; return; }
+      catDraft[t].splice(Number(i), 1); paintCats();
+    }
+  });
+});
+function paintAcc() {
+  $('#accList').innerHTML = accDraft.map((a, i) => `<div class="accrow">
+      <input id="accName${i}" data-i="${i}" data-k="name" value="${esc(a.name)}" placeholder="名前" aria-label="口座名">
+      <input id="accInit${i}" class="num" data-i="${i}" data-k="init" inputmode="numeric" value="${a.init ? Number(a.init).toLocaleString('ja-JP') : ''}" placeholder="0" aria-label="はじめの残高">
+      <button type="button" data-rm="${i}" aria-label="${esc(a.name)}を削除">⊖</button></div>`).join('')
+    + '<button type="button" class="addacc" id="accAdd">＋ 口座を追加（クレカ・PayPayなど）</button>';
+}
+$('#btnSettings').onclick = () => openSettings('acc');
+$('#accList').addEventListener('input', e => {
+  const i = e.target.dataset.i; if (i == null) return;
+  if (e.target.dataset.k === 'init') {
+    const neg = e.target.value.trim().startsWith('-') || e.target.value.trim().startsWith('−');
+    const d = e.target.value.replace(/[^\d]/g, '');
+    accDraft[i].init = d ? (neg ? -1 : 1) * Number(d) : 0;
+  } else accDraft[i].name = e.target.value;
+});
+$('#accList').addEventListener('click', e => {
+  if (e.target.id === 'accAdd') { accDraft.push({ id: uid(), name: '', init: 0 }); paintAcc(); $(`#accName${accDraft.length-1}`).focus(); return; }
+  const rm = e.target.closest('[data-rm]');
+  if (rm) {
+    const a = accDraft[rm.dataset.rm];
+    if (state.txs.some(t => t.account === a.id || t.to === a.id)) { $('#accErr').textContent = `「${a.name}」は記録で使われているので削除できません。名前の変更はできます。`; return; }
+    accDraft.splice(rm.dataset.rm, 1); paintAcc();
+  }
+});
+$('#accSave').onclick = async () => {
+  const clean = accDraft.map(a => ({ id: a.id, name: a.name.trim().slice(0, 30), init: Number(a.init) || 0 })).filter(a => a.name);
+  if (!clean.length) { $('#accErr').textContent = '口座を1つ以上入れてください。'; return; }
+  const cats = {};
+  for (const t of ['expense', 'income']) {
+    cats[t] = catDraft[t].map(c => ({ id: c.id, name: c.name.trim().slice(0, 20) })).filter(c => c.name);
+    if (!cats[t].length) { $('#accErr').textContent = (t === 'expense' ? '支出' : '収入') + 'のジャンルを1つ以上入れてください。'; return; }
+  }
+  try { await store.saveBook(clean, cats); state.accounts = clean; state.cats = cats; hide(); render(); toast('保存しました'); }
+  catch { $('#accErr').textContent = '保存できませんでした。'; }
+};
+
+init();
+})();
+</script>
+
+</body>
+</html>

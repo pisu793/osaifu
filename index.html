@@ -19,19 +19,22 @@
   --bg:#ffffff; --surface:#f2f2f7; --card:#ffffff; --line:#e3e3e8;
   --fg:#111114; --sub:#8a8a92; --today:#ff3b30; --sel:#111114; --selfg:#ffffff;
   --out:#e5484d; --in:#2f9e5b; --move:#3a7bd5; --plan:#b07a12; --planbg:#fff4dc;
-  --accent:#ff3b30; --scrim:rgba(0,0,0,.32);
+  --accent:#ff3b30; --scrim:rgba(0,0,0,.32); --todayfg:#ffffff;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --sx:#b4b4ba;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#000000; --surface:#1c1c1e; --card:#1c1c1e; --line:#2c2c2e;
   --fg:#f5f5f7; --sub:#8e8e93; --today:#ff453a; --sel:#f5f5f7; --selfg:#000000;
   --out:#ff6b6b; --in:#4cc47c; --move:#6aa2ff; --plan:#e0a93a; --planbg:#3a2c0f;
-  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark }}
+  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --sx:#5a5a60 }}
 :root[data-theme="dark"]{
   --bg:#000000; --surface:#1c1c1e; --card:#1c1c1e; --line:#2c2c2e;
   --fg:#f5f5f7; --sub:#8e8e93; --today:#ff453a; --sel:#f5f5f7; --selfg:#000000;
   --out:#ff6b6b; --in:#4cc47c; --move:#6aa2ff; --plan:#e0a93a; --planbg:#3a2c0f;
-  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark }
+  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --sx:#5a5a60 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;-webkit-tap-highlight-color:transparent}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
@@ -69,7 +72,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .cell.wkend .dnum{color:var(--sub)}
 .cell.today .dnum{color:var(--today);font-weight:700}
 .cell.sel .dnum{background:var(--sel);color:var(--selfg);font-weight:600}
-.cell.sel.today .dnum{background:var(--today);color:#fff}
+.cell.sel.today .dnum{background:var(--today);color:var(--todayfg)}
 .amt{font-size:9.5px;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .amt.o{color:var(--out)} .amt.i{color:var(--in)}
 .amt.p{color:var(--plan)}
@@ -144,13 +147,19 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .switch input:focus-visible+i{outline:2px solid var(--accent);outline-offset:2px}
 .danger{width:100%;padding:13px;border-radius:12px;background:var(--surface);color:var(--out);font-weight:600}
 .err{color:var(--out);font-size:13px;min-height:18px;margin:0 4px 8px}
-.accrow{display:grid;grid-template-columns:1fr 120px 32px;gap:8px;align-items:center;padding:8px 14px;border-top:1px solid var(--line)}
+.accrow{display:grid;grid-template-columns:30px 1fr 110px 32px;gap:8px;align-items:center;padding:8px 14px;border-top:1px solid var(--line)}
 .accrow:first-child{border-top:0}
 .accrow input{font:inherit;border:0;background:none;color:var(--fg);min-width:0;outline:none;padding:6px 0}
 .accrow input.num{text-align:right}
 .accrow button{color:var(--out);font-size:20px}
 .addacc{color:var(--accent);font-weight:600;padding:12px 14px;width:100%;text-align:left;border-top:1px solid var(--line)}
-.accrow.cat{grid-template-columns:1fr 32px}
+.accrow.cat{grid-template-columns:30px 1fr 32px}
+.mv{display:flex;flex-direction:column;align-items:center;gap:2px}
+.accrow .mv button{color:var(--sub);font-size:11px;line-height:1;width:30px;height:20px;border-radius:6px;background:var(--bg)}
+.accrow .mv button:disabled{opacity:.25;cursor:default}
+.accrow.moved{animation:moved .5s ease}
+@keyframes moved{from{background:var(--line)}to{background:transparent}}
+@media (prefers-reduced-motion:reduce){.accrow.moved{animation:none}}
 .shead .edit{color:var(--accent);font-size:14px;font-weight:600}
 .brk{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 14px;border-top:1px solid var(--line);align-items:baseline}
 .brk:first-child{border-top:0}
@@ -160,7 +169,47 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .track{grid-column:1/-1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .track i{display:block;height:100%;background:var(--out);border-radius:3px}
 .sublbl{margin-top:18px}
+.anaNav{display:flex;align-items:center;justify-content:space-between;padding-block:2px 6px}
+.anaNav button{width:40px;height:36px;color:var(--accent);font-size:22px}
+.anaNav span{font-weight:600;font-size:15px}
+.donutWrap{position:relative;width:min(220px,64vw);aspect-ratio:1;max-width:100%;margin:4px auto 14px}
+.donutWrap svg{width:100%;height:100%;display:block}
+.donutWrap circle{cursor:pointer;transition:stroke-width .15s}
+.donutCenter{position:absolute;inset:22%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;gap:2px}
+.donutCenter span{font-size:12px;color:var(--sub);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.donutCenter b{font-size:20px;color:var(--fg)}
+.rank{flex:none;width:18px;text-align:center;font-weight:700;color:var(--sub);font-size:13px}
+.sw{flex:none;width:10px;height:10px;border-radius:3px}
+.brk{cursor:pointer}
+.brk.on{background:var(--line)}
+.brk .bname{display:flex;align-items:center;gap:8px}
 .hint{font-size:12px;color:var(--sub);margin:-6px 4px 14px;line-height:1.5}
+/* theme colors (chosen in settings) */
+:root[data-color="yellow"]{--bg:#fffdf4;--surface:#fff4cc;--card:#fffdf4;--line:#f0e3b2;--today:#f5b700;--todayfg:#2a2100;--accent:#9c6b00;--plan:#7c5cd6;--planbg:#eee9ff}
+@media (prefers-color-scheme: dark){:root[data-color="yellow"]:not([data-theme="light"]){--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445}}
+:root[data-color="yellow"][data-theme="dark"]{--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445}
+:root[data-color="pink"]{--bg:#fffafb;--surface:#fdebf0;--card:#fffafb;--line:#f3d5de;--today:#e8578a;--todayfg:#ffffff;--accent:#d23f74;--plan:#b07a12;--planbg:#fff4dc}
+@media (prefers-color-scheme: dark){:root[data-color="pink"]:not([data-theme="light"]){--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f}}
+:root[data-color="pink"][data-theme="dark"]{--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f}
+:root[data-color="blue"]{--bg:#fbfdff;--surface:#eaf2fc;--card:#fbfdff;--line:#d3e2f4;--today:#2a78d6;--todayfg:#ffffff;--accent:#1f6cc7;--plan:#b07a12;--planbg:#fff4dc}
+@media (prefers-color-scheme: dark){:root[data-color="blue"]:not([data-theme="light"]){--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f}}
+:root[data-color="blue"][data-theme="dark"]{--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f}
+.themes{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.themes button{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;color:var(--sub);padding:4px 2px;min-width:56px}
+.themes i{width:40px;height:40px;border-radius:50%;border:3px solid transparent;box-shadow:inset 0 0 0 2px var(--bg)}
+.themes button[aria-pressed="true"] i{border-color:var(--fg)}
+.themes button[aria-pressed="true"]{color:var(--fg);font-weight:600}
+.f .pick{color:var(--accent);font-weight:600;cursor:pointer}
+.stkctl{display:flex;gap:18px;align-items:center}
+.stkctl button{color:var(--out)}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.seg.small{margin:0;width:160px;flex:none}
+.seg.small button{padding:5px 0;font-size:13px}
+#sticker{position:fixed;z-index:4;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18));cursor:grab;height:auto}
+#sticker.dragging{cursor:grabbing;filter:drop-shadow(0 10px 16px rgba(0,0,0,.25))}
+#sticker.boing{animation:boing .45s ease}
+@keyframes boing{0%{transform:scale(1)}35%{transform:scale(1.15,.88)}65%{transform:scale(.94,1.08)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){#sticker.boing{animation:none}}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13.5px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 </style>
@@ -172,7 +221,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
     <div class="bar">
       <button class="tbtn" id="btnToday" type="button">今日</button>
       <div class="icons">
-        <button id="btnSettings" type="button" aria-label="口座の設定">
+        <button id="btnSettings" type="button" aria-label="設定">
           <svg class="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18M16 14.5h2"/></svg>
         </button>
         <button class="plus" id="btnAdd" type="button" aria-label="記録を追加">＋</button>
@@ -204,8 +253,23 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
   </section>
 
   <section class="section">
-    <div class="shead"><h2 id="brkTitle">今月のジャンル別</h2><button type="button" class="edit" data-settings="cats">ジャンルを編集</button></div>
+    <div class="shead"><h2>ジャンル別の支出</h2><button type="button" class="edit" data-settings="cats">ジャンルを編集</button></div>
+    <div class="seg" role="group" aria-label="集計する期間" id="anaSeg">
+      <button type="button" data-ana="week">週</button>
+      <button type="button" data-ana="month">月</button>
+      <button type="button" data-ana="year">年</button>
+    </div>
+    <div class="anaNav">
+      <button type="button" id="anaPrev" aria-label="前の期間">‹</button>
+      <span id="anaLabel" class="num">--</span>
+      <button type="button" id="anaNext" aria-label="次の期間">›</button>
+    </div>
+    <div class="donutWrap">
+      <svg id="donut" viewBox="0 0 200 200" role="img" aria-label="ジャンル別の支出の割合"></svg>
+      <div class="donutCenter" aria-live="polite"><span id="dcLabel">合計</span><b id="dcAmt" class="num">¥0</b><span id="dcPct" class="num"></span></div>
+    </div>
     <div class="list" id="brkList"></div>
+    <p class="meta" style="font-size:12px;color:var(--sub);margin:8px 4px 0">確定した支出だけを集計しています（予定は含みません）。グラフや行をタップすると詳しく見られます。</p>
   </section>
 
   <section class="section">
@@ -253,7 +317,15 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
       <h3 id="accHead">設定</h3>
       <button type="button" class="save" id="accSave">保存</button>
     </div>
-    <p class="lbl" id="secAcc">口座・おさいふ（名前 ／ はじめの残高）</p>
+    <p class="lbl">テーマカラー</p>
+    <div class="themes" id="themes" role="group" aria-label="テーマカラー"></div>
+    <p class="lbl sublbl">ミニキャラ画像</p>
+    <div class="form">
+      <div class="f"><span>画像</span><span class="stkctl"><label class="pick" for="stkFile">画像を選ぶ</label><input type="file" id="stkFile" class="vh" accept="image/*"><button type="button" id="stkDel" hidden>はずす</button></span></div>
+      <div class="f"><span>大きさ</span><div class="seg small" id="stkSize" role="group" aria-label="大きさ"><button type="button" data-size="s">小</button><button type="button" data-size="m">中</button><button type="button" data-size="l">大</button></div></div>
+    </div>
+    <p class="hint">見た目の設定はすぐ反映されます。画像はこの端末の中にだけ保存され、外には出ません。置いたミニキャラは指でドラッグして好きな場所に動かせます。</p>
+    <p class="lbl sublbl" id="secAcc">口座・おさいふ（名前 ／ はじめの残高）</p>
     <div class="form" id="accList"></div>
     <p class="hint">名前はタップして書き換えられます。はじめの残高に今の手持ち額を入れておくと、残高が実際の金額と合います。</p>
     <p class="lbl sublbl" id="secCats">支出のジャンル</p>
@@ -265,6 +337,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
   </div>
 </div>
 
+<img id="sticker" alt="ミニキャラ" hidden draggable="false">
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -297,9 +370,89 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const now = new Date();
 const state = {
   today: ymd(now), y: now.getFullYear(), m: now.getMonth(), sel: ymd(now),
-  txs: [], accounts: DEFAULT_ACCOUNTS.slice(), cats: cloneCats(DEFAULT_CATS), ready: false
+  txs: [], accounts: DEFAULT_ACCOUNTS.slice(), cats: cloneCats(DEFAULT_CATS), ready: false,
+  ana: (() => { try { return localStorage.getItem('osaifu.ana') || 'month'; } catch { return 'month'; } })(), anaFocus: null
 };
 const catName = t => (state.cats[t.type] || []).find(c => c.id === t.cat)?.name || t.category || 'その他';
+
+/* ---------- appearance: theme color + mini character sticker (kept on this device) ---------- */
+const COLORS = [['red', 'いちご', '#ff3b30'], ['yellow', 'レモン', '#f5b700'], ['pink', 'さくら', '#e8578a'], ['blue', 'そら', '#2a78d6']];
+let colorKey = (() => { try { return localStorage.getItem('osaifu.color') || 'red'; } catch { return 'red'; } })();
+function applyColor() {
+  if (colorKey === 'red') delete document.documentElement.dataset.color;
+  else document.documentElement.dataset.color = colorKey;
+}
+function paintThemes() {
+  $('#themes').innerHTML = COLORS.map(([k, n, hex]) =>
+    `<button type="button" data-color="${k}" aria-pressed="${k === colorKey}"><i style="background:${hex}"></i>${n}</button>`).join('');
+  document.querySelectorAll('#stkSize [data-size]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.size === (stk?.size || 'm'))));
+  $('#stkDel').hidden = !stk?.src;
+}
+applyColor();
+
+let stk = lsGet('osaifu.sticker', null); // {src, size, x, y}  x,y = 画面に対する位置(0〜1)
+const STK_PX = { s: 64, m: 100, l: 150 };
+function saveStk() {
+  try { if (stk) localStorage.setItem('osaifu.sticker', JSON.stringify(stk)); else localStorage.removeItem('osaifu.sticker'); return true; }
+  catch { return false; }
+}
+function placeStk() {
+  const el = $('#sticker');
+  if (!stk?.src) { el.hidden = true; return; }
+  const w = STK_PX[stk.size || 'm'];
+  el.style.width = w + 'px';
+  if (el.getAttribute('src') !== stk.src) el.src = stk.src;
+  el.hidden = false;
+  const h = el.offsetHeight || w;
+  const vw = innerWidth, vh = innerHeight;
+  let x = stk.x == null ? vw - w - 16 : stk.x * vw;
+  let y = stk.y == null ? vh - h - 40 : stk.y * vh;
+  x = Math.min(Math.max(0, x), vw - w); y = Math.min(Math.max(0, y), vh - h);
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+}
+$('#sticker').addEventListener('load', placeStk);
+addEventListener('resize', placeStk);
+(() => {
+  const el = $('#sticker'); let drag = null;
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); el.setPointerCapture(e.pointerId);
+    const r = el.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, sx: e.clientX, sy: e.clientY, moved: false };
+  });
+  el.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 5) { drag.moved = true; el.classList.add('dragging'); }
+    if (!drag.moved) return;
+    const x = Math.min(Math.max(0, e.clientX - drag.dx), innerWidth - el.offsetWidth);
+    const y = Math.min(Math.max(0, e.clientY - drag.dy), innerHeight - el.offsetHeight);
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+  });
+  const end = () => {
+    if (!drag) return;
+    el.classList.remove('dragging');
+    if (drag.moved) { stk.x = parseFloat(el.style.left) / innerWidth; stk.y = parseFloat(el.style.top) / innerHeight; saveStk(); }
+    else { el.classList.remove('boing'); void el.offsetWidth; el.classList.add('boing'); }
+    drag = null;
+  };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+})();
+function shrinkImage(file, max) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      const alpha = /png|webp|gif/.test(file.type);
+      res(c.toDataURL(alpha ? 'image/png' : 'image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('load')); };
+    img.src = url;
+  });
+}
+placeStk();
 
 /* ---------- storage: private cloud db per person, browser storage as fallback ---------- */
 const store = {
@@ -466,22 +619,7 @@ function render() {
     }).join('');
   }
 
-  // category breakdown (confirmed expenses this month)
-  const byCat = {};
-  let tot = 0;
-  for (const t of state.txs) {
-    if (t.type !== 'expense' || t.planned || !t.date?.startsWith(mk)) continue;
-    const a = Number(t.amount) || 0, n = catName(t);
-    byCat[n] = (byCat[n] || 0) + a; tot += a;
-  }
-  $('#brkTitle').textContent = `${m+1}月のジャンル別支出`;
-  const rows = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
-  const max = rows[0]?.[1] || 1;
-  $('#brkList').innerHTML = rows.length ? rows.map(([n, a]) => `<div class="brk">
-      <span class="bname">${esc(n)}</span>
-      <span class="bamt num">${yen(a)}<small>${Math.round(a / tot * 100)}%</small></span>
-      <span class="track"><i style="width:${Math.max(2, a / max * 100)}%"></i></span></div>`).join('')
-    : '<div class="empty">この月の確定した支出はまだありません。</div>';
+  renderAnalysis();
 
   // balances
   const b = balances();
@@ -493,6 +631,101 @@ function render() {
       <div>${diff ? '予定込み ' + (v.plan < 0 ? '−' : '') + yen(v.plan) : ''}</div></span></div>`;
   }).join('') || '<div class="empty">口座がありません。右上のおさいふアイコンから追加してください。</div>';
 }
+
+/* ---------- analysis: share of expenses by category, per week / month / year ---------- */
+function periodRange() {
+  const d = new Date(state.sel + 'T00:00:00');
+  if (state.ana === 'week') {
+    const s = new Date(d); s.setDate(d.getDate() - d.getDay());
+    const e = new Date(s); e.setDate(s.getDate() + 6);
+    const fmt = x => `${x.getMonth()+1}/${x.getDate()}`;
+    const yr = s.getFullYear() !== now.getFullYear() ? `${s.getFullYear()}年 ` : '';
+    return { from: ymd(s), to: ymd(e), label: `${yr}${fmt(s)}（日）〜 ${fmt(e)}（土）` };
+  }
+  if (state.ana === 'year') {
+    const y = d.getFullYear();
+    return { from: `${y}-01-01`, to: `${y}-12-31`, label: `${y}年` };
+  }
+  const y = d.getFullYear(), mm = d.getMonth();
+  return { from: `${y}-${pad2(mm+1)}-01`, to: `${y}-${pad2(mm+1)}-31`, label: `${y}年${mm+1}月` };
+}
+function arcPath(cx, cy, r, a0, a1) {
+  const p = a => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const [x0, y0] = p(a0), [x1, y1] = p(a1);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+function renderAnalysis() {
+  document.querySelectorAll('#anaSeg [data-ana]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ana === state.ana)));
+  const { from, to, label } = periodRange();
+  $('#anaLabel').textContent = label;
+  const byCat = {};
+  let tot = 0;
+  for (const t of state.txs) {
+    if (t.type !== 'expense' || t.planned || !t.date || t.date < from || t.date > to) continue;
+    const a = Number(t.amount) || 0, n = catName(t);
+    byCat[n] = (byCat[n] || 0) + a; tot += a;
+  }
+  let rows = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const nCats = rows.length;
+  // 色は上位7つまで。8位以下は「そのほか」にまとめる
+  if (rows.length > 8) {
+    const rest = rows.slice(7).reduce((s, r) => s + r[1], 0);
+    rows = [...rows.slice(0, 7), ['そのほか（' + (rows.length - 7) + 'ジャンル）', rest, true]];
+  }
+  const color = i => (rows[i][2] ? 'var(--sx)' : `var(--s${i + 1})`);
+  if (state.anaFocus && !rows.some(r => r[0] === state.anaFocus)) state.anaFocus = null;
+
+  // ドーナツ
+  const R = 78, W = 30, svg = $('#donut');
+  if (!tot) {
+    svg.innerHTML = `<circle cx="100" cy="100" r="${R}" fill="none" stroke="var(--line)" stroke-width="${W}"/>`;
+  } else if (rows.length === 1) {
+    svg.innerHTML = `<circle data-cat="${esc(rows[0][0])}" cx="100" cy="100" r="${R}" fill="none" stroke="${color(0)}" stroke-width="${W}"><title>${esc(rows[0][0])} ${yen(rows[0][1])}</title></circle>`;
+  } else {
+    const gap = 0.025; // セグメント間のすき間（ラジアン）
+    let a = -Math.PI / 2, h = '';
+    rows.forEach(([n, v], i) => {
+      const sweep = (v / tot) * Math.PI * 2;
+      const a0 = a + gap / 2, a1 = a + Math.max(sweep - gap / 2, gap / 2 + 0.001);
+      const on = state.anaFocus === n;
+      h += `<path data-cat="${esc(n)}" d="${arcPath(100, 100, R, a0, a1)}" fill="none" stroke="${color(i)}" stroke-width="${on ? W + 8 : W}"
+        opacity="${state.anaFocus && !on ? .35 : 1}" style="cursor:pointer"><title>${esc(n)} ${yen(v)}（${Math.round(v / tot * 100)}%）</title></path>`;
+      a += sweep;
+    });
+    svg.innerHTML = h;
+  }
+  const f = rows.find(r => r[0] === state.anaFocus);
+  $('#dcLabel').textContent = f ? f[0] : '合計';
+  $('#dcAmt').textContent = yen(f ? f[1] : tot);
+  $('#dcPct').textContent = f ? Math.round(f[1] / tot * 100) + '%' : (tot ? nCats + 'ジャンル' : '');
+
+  // ランキング
+  const max = rows[0]?.[1] || 1;
+  $('#brkList').innerHTML = rows.length ? rows.map(([n, v, other], i) => `<div class="brk${state.anaFocus === n ? ' on' : ''}" role="button" tabindex="0" data-cat="${esc(n)}">
+      <span class="bname"><span class="rank num">${other ? '' : i + 1}</span><span class="sw" style="background:${color(i)}"></span>${esc(n)}</span>
+      <span class="bamt num">${yen(v)}<small>${Math.round(v / tot * 100)}%</small></span>
+      <span class="track"><i style="width:${Math.max(2, v / max * 100)}%;background:${color(i)}"></i></span></div>`).join('')
+    : '<div class="empty">この期間の確定した支出はまだありません。</div>';
+}
+function focusCat(n) { state.anaFocus = state.anaFocus === n ? null : n; renderAnalysis(); }
+$('#donut').addEventListener('click', e => { const p = e.target.closest('[data-cat]'); if (p) focusCat(p.dataset.cat); });
+$('#brkList').addEventListener('click', e => { const r = e.target.closest('[data-cat]'); if (r) focusCat(r.dataset.cat); });
+$('#brkList').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset.cat) { e.preventDefault(); focusCat(e.target.dataset.cat); } });
+$('#anaSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-ana]'); if (!b) return;
+  state.ana = b.dataset.ana; state.anaFocus = null;
+  try { localStorage.setItem('osaifu.ana', state.ana); } catch {}
+  renderAnalysis();
+});
+function movePeriod(dir) {
+  state.anaFocus = null;
+  if (state.ana === 'week') {
+    const d = new Date(state.sel + 'T00:00:00'); d.setDate(d.getDate() + 7 * dir);
+    state.sel = ymd(d); state.y = d.getFullYear(); state.m = d.getMonth(); render();
+  } else shiftMonth(state.ana === 'year' ? 12 * dir : dir);
+}
+$('#anaPrev').onclick = () => movePeriod(-1);
+$('#anaNext').onclick = () => movePeriod(1);
 
 /* ---------- navigation ---------- */
 function shiftMonth(delta) {
@@ -653,9 +886,14 @@ $('#dayList').addEventListener('keydown', e => {
 });
 
 /* settings: accounts + categories */
-let accDraft = [], catDraft = null;
+let accDraft = [], catDraft = null, lastMoved = null;
+const mvBtns = (key, i, len, name) => `<span class="mv">
+      <button type="button" data-mv="${key}:${i}:-1" aria-label="${esc(name)}を上へ"${i === 0 ? ' disabled' : ''}>▲</button>
+      <button type="button" data-mv="${key}:${i}:1" aria-label="${esc(name)}を下へ"${i === len - 1 ? ' disabled' : ''}>▼</button></span>`;
+const movedCls = (key, i) => (lastMoved === key + ':' + i ? ' moved' : '');
 function catRows(type) {
-  return catDraft[type].map((c, i) => `<div class="accrow cat">
+  return catDraft[type].map((c, i) => `<div class="accrow cat${movedCls(type, i)}">
+      ${mvBtns(type, i, catDraft[type].length, c.name)}
       <input id="cat-${type}-${i}" data-ct="${type}" data-i="${i}" value="${esc(c.name)}" placeholder="ジャンル名" aria-label="ジャンル名">
       <button type="button" data-rmcat="${type}:${i}" aria-label="${esc(c.name)}を削除">⊖</button></div>`).join('')
     + `<button type="button" class="addacc" data-addcat="${type}">＋ ジャンルを追加</button>`;
@@ -667,8 +905,10 @@ function openSettings(focus) {
   $('#accErr').textContent = '';
   paintAcc(); paintCats();
   show($('#accSheet'));
-  const target = focus === 'cats' ? $('#secCats') : $('#secAcc');
-  setTimeout(() => target.scrollIntoView({ block: 'start', behavior: 'smooth' }), 260);
+  paintThemes();
+  const target = focus === 'cats' ? $('#secCats') : focus === 'acc' ? $('#secAcc') : null;
+  if (target) setTimeout(() => target.scrollIntoView({ block: 'start', behavior: 'smooth' }), 260);
+  else $('#accSheet').scrollTop = 0;
 }
 ['#catListE', '#catListI'].forEach(sel => {
   $(sel).addEventListener('input', e => { const t = e.target.dataset.ct; if (t) catDraft[t][e.target.dataset.i].name = e.target.value; });
@@ -688,13 +928,49 @@ function openSettings(focus) {
   });
 });
 function paintAcc() {
-  $('#accList').innerHTML = accDraft.map((a, i) => `<div class="accrow">
+  $('#accList').innerHTML = accDraft.map((a, i) => `<div class="accrow${movedCls('acc', i)}">
+      ${mvBtns('acc', i, accDraft.length, a.name)}
       <input id="accName${i}" data-i="${i}" data-k="name" value="${esc(a.name)}" placeholder="名前" aria-label="口座名">
       <input id="accInit${i}" class="num" data-i="${i}" data-k="init" inputmode="numeric" value="${a.init ? Number(a.init).toLocaleString('ja-JP') : ''}" placeholder="0" aria-label="はじめの残高">
       <button type="button" data-rm="${i}" aria-label="${esc(a.name)}を削除">⊖</button></div>`).join('')
     + '<button type="button" class="addacc" id="accAdd">＋ 口座を追加（クレカ・PayPayなど）</button>';
 }
-$('#btnSettings').onclick = () => openSettings('acc');
+$('#btnSettings').onclick = () => openSettings('look');
+$('#themes').addEventListener('click', e => {
+  const b = e.target.closest('[data-color]'); if (!b) return;
+  colorKey = b.dataset.color; applyColor(); paintThemes();
+  try { localStorage.setItem('osaifu.color', colorKey); } catch {}
+});
+$('#stkSize').addEventListener('click', e => {
+  const b = e.target.closest('[data-size]'); if (!b) return;
+  if (!stk?.src) { $('#accErr').textContent = '先に「画像を選ぶ」でミニキャラの画像を選んでください。'; return; }
+  stk.size = b.dataset.size; saveStk(); placeStk(); paintThemes();
+});
+$('#stkFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const src = await shrinkImage(f, 400);
+    const prev = stk;
+    stk = { src, size: prev?.size || 'm', x: prev?.x ?? null, y: prev?.y ?? null };
+    if (!saveStk()) { stk = prev; $('#accErr').textContent = '画像が大きすぎて保存できませんでした。小さめの画像で試してください。'; return; }
+    $('#accErr').textContent = ''; placeStk(); paintThemes(); toast('ミニキャラを置きました');
+  } catch { $('#accErr').textContent = '画像を読み込めませんでした。別の画像で試してください。'; }
+});
+$('#stkDel').onclick = () => { stk = null; saveStk(); placeStk(); paintThemes(); toast('ミニキャラをはずしました'); };
+// 並べ替え（▲▼）
+$('#accSheet').addEventListener('click', e => {
+  const b = e.target.closest('[data-mv]'); if (!b || b.disabled) return;
+  const [key, i, d] = b.dataset.mv.split(':'); const from = Number(i), to = from + Number(d);
+  const list = key === 'acc' ? accDraft : catDraft[key];
+  if (to < 0 || to >= list.length) return;
+  [list[from], list[to]] = [list[to], list[from]];
+  lastMoved = key + ':' + to;
+  if (key === 'acc') paintAcc(); else paintCats();
+  lastMoved = null;
+  const nb = $(`[data-mv="${key}:${to}:${d}"]`);
+  (nb && !nb.disabled ? nb : $(`[data-mv="${key}:${to}:${-d}"]`))?.focus();
+});
 $('#accList').addEventListener('input', e => {
   const i = e.target.dataset.i; if (i == null) return;
   if (e.target.dataset.k === 'init') {

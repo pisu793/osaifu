@@ -195,7 +195,7 @@ input,select,textarea{font-size:16px}
 /* budget */
 .bud{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:11px 14px;border-top:1px solid var(--line);align-items:baseline}
 .bud:first-child{border-top:0}
-.bud .bname{font-weight:600;display:flex;align-items:center;gap:6px;min-width:0}
+.bud .bname{font-weight:600;display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
 .bud .bamt{font-weight:600;text-align:right;white-space:nowrap}
 .bud .bamt small{color:var(--sub);font-weight:500;font-size:12px}
 .bud .btrack{grid-column:1/-1;height:8px;border-radius:4px;background:var(--line);overflow:hidden;display:flex}
@@ -220,6 +220,8 @@ input,select,textarea{font-size:16px}
 .pill.rep{background:var(--surface);color:var(--sub);border:1px solid var(--line)}
 .repinfo{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--sub)}
 .repinfo button{color:var(--accent);font-weight:600;white-space:nowrap}
+.delpair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.delpair .danger{padding:12px 6px;font-size:14px}
 .rulelist .row{border-top:1px solid var(--line)} .rulelist .row:first-child{border-top:0}
 /* theme colors (chosen in settings) */
 :root[data-color="yellow"]{--bg:#fffdf4;--surface:#fff4cc;--card:#fffdf4;--line:#f0e3b2;--today:#f5b700;--todayfg:#2a2100;--accent:#9c6b00;--plan:#7c5cd6;--planbg:#eee9ff;--hl:#ffd84d;--hlfg:#2a2100}
@@ -348,6 +350,11 @@ input,select,textarea{font-size:16px}
     <p class="hint" id="moveHint" hidden>移動は収入にも支出にもカウントされません。口座の残高だけが動きます（例：現金 → 電子マネーにチャージ）。</p>
     <p class="err" id="txErr"></p>
     <button type="button" class="danger" id="txDel" hidden>この記録を削除</button>
+    <div class="delpair" id="occDel" hidden>
+      <button type="button" class="danger" id="delOne">この月だけ削除</button>
+      <button type="button" class="danger" id="delAll">これ以降すべて削除</button>
+    </div>
+    <p class="hint" id="occDelHint" hidden>「これ以降すべて削除」は、この日から先のくり返しをやめます。前の記録は残ります。</p>
   </div>
 </div>
 
@@ -366,6 +373,8 @@ input,select,textarea{font-size:16px}
     <p class="hint">名前はタップして書き換えられます。はじめの残高に今の手持ち額を入れておくと、残高が実際の金額と合います。</p>
     <p class="lbl sublbl" id="secBud">月の予算</p>
     <div class="form"><div class="f budtop"><label for="budAll">全体の予算（1か月）</label><input id="budAll" inputmode="numeric" placeholder="なし" autocomplete="off"></div></div>
+    <p class="lbl" style="margin-top:12px">全体の予算に入れないジャンル（家賃・光熱費など）</p>
+    <div class="chips" id="budExcl" role="group" aria-label="全体の予算に入れないジャンル"></div>
     <p class="hint">ジャンルごとの予算は、下の「支出のジャンル」の右の欄に入れられます。空欄なら予算なしです。</p>
     <p class="lbl sublbl" id="secCats">支出のジャンル</p>
     <div class="colhead" aria-hidden="true"><span></span><span>名前</span><span>月の予算</span><span></span></div>
@@ -512,6 +521,40 @@ function ruleTx(r, date) {
   if (r.type === 'transfer') t.to = r.to; else { t.cat = r.cat; t.category = r.category; }
   return t;
 }
+// 実データとして作るのは「来月末」まで。それより先は表示用の予定（ずっと続く）
+const horizonStr = () => ymd(new Date(now.getFullYear(), now.getMonth() + 2, 0));
+function ruleDates(r, from, to) {
+  const out = [];
+  if (!r.start || !r.day) return out;
+  const st = new Date(r.start + 'T00:00:00');
+  const f = new Date(from + 'T00:00:00');
+  let y = st.getFullYear(), m = st.getMonth();
+  if (f > st) { y = f.getFullYear(); m = f.getMonth(); }
+  for (let guard = 0; guard < 600; guard++) {
+    const d = ymd(new Date(y, m, Math.min(r.day, daysIn(y, m))));
+    if (d > to || (r.end && d > r.end)) break;
+    if (d >= r.start && d >= from && !(r.skip || []).includes(d)) out.push(d);
+    if (++m > 11) { m = 0; y++; }
+  }
+  return out;
+}
+// 表示している期間の「先の予定」を、保存せずに作る
+function virtualTxs(from, to) {
+  const h = horizonStr();
+  if (to <= h) return [];
+  const have = new Set(state.txs.map(t => t.id));
+  const out = [];
+  for (const r of state.rules)
+    for (const d of ruleDates(r, from > h ? from : ymd(new Date(new Date(h + 'T00:00:00').getTime() + 864e5)), to)) {
+      const t = ruleTx(r, d);
+      if (!have.has(t.id)) out.push({ ...t, virtual: true });
+    }
+  return out;
+}
+const monthTxs = (y, m) => {
+  const from = `${y}-${pad2(m + 1)}-01`, to = `${y}-${pad2(m + 1)}-${pad2(daysIn(y, m))}`;
+  return state.txs.concat(virtualTxs(from, to));
+};
 let syncing = false, syncAgain = null;
 // 予定を「来月末」まで作っておく。日付が来たものは自動で確定する（設定オンのとき）
 async function syncRules(exclude = new Set()) {
@@ -520,23 +563,13 @@ async function syncRules(exclude = new Set()) {
   syncing = true;
   try {
     const have = new Set(state.txs.map(t => t.id).filter(id => !exclude.has(id)));
-    const h = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-    const horizon = ymd(h);
+    const horizon = horizonStr();
     const writes = [];
-    for (const r of state.rules) {
-      if (!r.start || !r.day) continue;
-      const st = new Date(r.start + 'T00:00:00');
-      let y = st.getFullYear(), m = st.getMonth();
-      for (let guard = 0; guard < 600; guard++) {
-        const d = ymd(new Date(y, m, Math.min(r.day, daysIn(y, m))));
-        if (d > horizon) break;
-        if (d >= r.start && !(r.skip || []).includes(d)) {
-          const t = ruleTx(r, d);
-          if (!have.has(t.id)) { writes.push(t); have.add(t.id); }
-        }
-        if (++m > 11) { m = 0; y++; }
+    for (const r of state.rules)
+      for (const d of ruleDates(r, r.start, horizon)) {
+        const t = ruleTx(r, d);
+        if (!have.has(t.id)) { writes.push(t); have.add(t.id); }
       }
-    }
     for (const t of state.txs) {
       if (!t.rid || !t.planned || t.date > state.today) continue;
       const r = state.rules.find(x => x.id === t.rid);
@@ -580,7 +613,7 @@ function render() {
 
   const byDay = {};
   let inc = 0, out = 0, pin = 0, pout = 0;
-  for (const t of state.txs) {
+  for (const t of monthTxs(y, m)) {
     (byDay[t.date] ||= []).push(t);
     if (!t.date?.startsWith(mk)) continue;
     const a = Number(t.amount) || 0;
@@ -698,13 +731,16 @@ function renderBudget() {
   $('#budTitle').textContent = `${m + 1}月の予算`;
   const spent = {}, plan = {};
   let all = 0, allPlan = 0;
-  for (const t of state.txs) {
+  const excl = new Set(state.cats.expense.filter(c => c.noTotal).map(c => c.id));
+  for (const t of monthTxs(y, m)) {
     if (t.type !== 'expense' || !t.date?.startsWith(mk)) continue;
     const a = Number(t.amount) || 0;
     const c = (state.cats.expense.find(x => x.id === t.cat) || state.cats.expense.find(x => x.name === t.category))?.id || '_';
-    if (t.planned) { plan[c] = (plan[c] || 0) + a; allPlan += a; }
-    else { spent[c] = (spent[c] || 0) + a; all += a; }
+    const inAll = !excl.has(c);
+    if (t.planned) { plan[c] = (plan[c] || 0) + a; if (inAll) allPlan += a; }
+    else { spent[c] = (spent[c] || 0) + a; if (inAll) all += a; }
   }
+  const exclNames = state.cats.expense.filter(c => c.noTotal).map(c => c.name);
   const withBud = state.cats.expense.filter(c => Number(c.budget) > 0);
   if (!state.budget && !withBud.length) {
     $('#budList').innerHTML = '<div class="empty">予算を決めると、あといくら使えるかがここに出ます。<br><button type="button" data-settings="budget">＋ 予算を決める</button></div>';
@@ -717,7 +753,8 @@ function renderBudget() {
     const left = state.budget - all;
     if (left > 0) note = `残り${daysLeft}日・1日 ${yen(Math.floor(left / daysLeft))}`;
   }
-  $('#budList').innerHTML = (state.budget ? budRow('all', '全体', all, allPlan, state.budget, note) : '')
+  const allName = exclNames.length ? `全体（${exclNames.join('・')}をのぞく）` : '全体';
+  $('#budList').innerHTML = (state.budget ? budRow('all', allName, all, allPlan, state.budget, note) : '')
     + withBud.map(c => budRow('', c.name, spent[c.id] || 0, plan[c.id] || 0, Number(c.budget), '')).join('');
 }
 
@@ -951,7 +988,7 @@ function paintRep() {
   $('#dateLabel').textContent = repOn ? 'はじまる日' : '日付';
   const day = Number(String(ed.date || '').slice(8)) || 1;
   $('#repHint').hidden = !repOn;
-  $('#repHint').textContent = repOn ? `毎月${day}日に記録します（その日がない月は月末）。来月の分まで先に予定として入ります。` : '';
+  $('#repHint').textContent = repOn ? `毎月${day}日に記録します（その日がない月は月末）。先の月にもずっと予定として表示されます。` : '';
 }
 function fillSheet() {
   $('#fAmt').value = ed.amount ? Number(ed.amount).toLocaleString('ja-JP') : '';
@@ -966,6 +1003,7 @@ function openRule(r) {
   ed = { ...r, mode: 'rule', date: r.start, planned: false, rep: true };
   $('#txHead').textContent = '毎月のくり返し';
   $('#txDel').hidden = false; $('#txDel').textContent = 'くり返しをやめる';
+  $('#occDel').hidden = $('#occDelHint').hidden = true;
   fillSheet();
   if (!stack.includes($('#txSheet'))) show($('#txSheet'));
 }
@@ -980,7 +1018,9 @@ function openTx(t) {
   $('#fDate').value = ed.date;
   $('#fMemo').value = ed.memo || '';
   $('#txErr').textContent = '';
-  $('#txDel').hidden = !t; $('#txDel').textContent = 'この記録を削除';
+  $('#txDel').hidden = !t || !!t.rid; $('#txDel').textContent = 'この記録を削除';
+  $('#occDel').hidden = $('#occDelHint').hidden = !(t && t.rid);
+  $('#delOne').textContent = 'この月だけ削除'; $('#delAll').textContent = 'これ以降すべて削除'; armOne = armAll = false;
   paintForm();
   show($('#txSheet'));
   if (!t) setTimeout(() => $('#fAmt').focus(), 260);
@@ -1008,6 +1048,7 @@ $('#txSave').onclick = async () => {
   if (ed.type === 'transfer' && (!ed.to || ed.to === ed.account)) { $('#txErr').textContent = '移動先には移動元と別の口座を選んでください。'; return; }
   const t = { id: ed.id || uid(), type: ed.type, amount, date: ed.date, account: ed.account, memo: ed.memo,
     planned: !!ed.planned, created: ed.created || Date.now() };
+  if (ed.rid && ed.mode !== 'rule') t.rid = ed.rid;
   if (ed.type === 'transfer') t.to = ed.to;
   else {
     const c = state.cats[ed.type].find(x => x.id === ed.cat);
@@ -1018,6 +1059,7 @@ $('#txSave').onclick = async () => {
     const isEdit = ed.mode === 'rule';
     const r = { id: isEdit ? ed.id : uid(), type: t.type, amount: t.amount, day: Number(t.date.slice(8)), start: t.date,
       account: t.account, memo: t.memo, auto: ed.auto !== false, skip: isEdit ? (ed.skip || []) : [] };
+    if (isEdit && ed.end) r.end = ed.end;
     if (t.type === 'transfer') r.to = t.to; else { r.cat = t.cat; r.category = t.category; }
     try {
       const exclude = new Set();
@@ -1058,18 +1100,44 @@ $('#txDel').onclick = async () => {
   catch { $('#txErr').textContent = '削除できませんでした。'; }
 };
 
+let armOne = false, armAll = false;
+$('#delOne').onclick = async () => {
+  if (!armOne) { armOne = true; $('#delOne').textContent = 'もう一度タップ'; return; }
+  try {
+    const r = state.rules.find(x => x.id === ed.rid);
+    if (r) await store.saveBook({ rules: state.rules.map(x => (x.id === r.id ? { ...x, skip: [...(x.skip || []), ed.date] } : x)) });
+    if (state.txs.some(x => x.id === ed.id)) await store.delTx(ed.id);
+    hide(); render(); toast('この月の分を削除しました');
+  } catch { $('#txErr').textContent = '削除できませんでした。'; }
+};
+$('#delAll').onclick = async () => {
+  if (!armAll) { armAll = true; $('#delAll').textContent = 'もう一度タップ'; return; }
+  try {
+    const r = state.rules.find(x => x.id === ed.rid);
+    const from = ed.date;
+    for (const x of state.txs.filter(x => x.rid === ed.rid && (x.date >= from || x.id === ed.id) && (x.planned || x.id === ed.id))) await store.delTx(x.id);
+    if (r) {
+      const endD = new Date(from + 'T00:00:00'); endD.setDate(endD.getDate() - 1);
+      const end = ymd(endD);
+      const rules = end < r.start ? state.rules.filter(x => x.id !== r.id) : state.rules.map(x => (x.id === r.id ? { ...x, end } : x));
+      await store.saveBook({ rules });
+    }
+    hide(); render(); toast('これ以降のくり返しを削除しました');
+  } catch { $('#txErr').textContent = '削除できませんでした。'; }
+};
 $('#btnAdd').onclick = () => openTx();
+const findTx = id => state.txs.find(x => x.id === id) || monthTxs(state.y, state.m).find(x => x.id === id);
 $('#dayList').addEventListener('click', async e => {
   if (e.target.closest('[data-add]')) { openTx(); return; }
   const c = e.target.closest('[data-confirm]');
   if (c) {
     e.stopPropagation();
-    const t = state.txs.find(x => x.id === c.dataset.confirm);
-    if (t) { try { await store.saveTx({ ...t, planned: false }); toast('確定しました'); } catch { toast('保存できませんでした'); } }
+    const t = findTx(c.dataset.confirm);
+    if (t) { const { virtual, ...rest } = t; try { await store.saveTx({ ...rest, planned: false }); toast('確定しました'); } catch { toast('保存できませんでした'); } }
     return;
   }
   const r = e.target.closest('[data-edit]');
-  if (r) { const t = state.txs.find(x => x.id === r.dataset.edit); if (t) openTx(t); }
+  if (r) { const t = findTx(r.dataset.edit); if (t) openTx(t); }
 });
 $('#dayList').addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-edit]')) { e.preventDefault(); e.target.click(); }
@@ -1089,7 +1157,15 @@ function catRows(type) {
       <button type="button" data-rmcat="${type}:${i}" aria-label="${esc(c.name)}を削除">⊖</button></div>`).join('')
     + `<button type="button" class="addacc" data-addcat="${type}">＋ ジャンルを追加</button>`;
 }
-function paintCats() { $('#catListE').innerHTML = catRows('expense'); $('#catListI').innerHTML = catRows('income'); }
+function paintCats() { $('#catListE').innerHTML = catRows('expense'); $('#catListI').innerHTML = catRows('income'); paintExcl(); }
+function paintExcl() {
+  $('#budExcl').innerHTML = catDraft.expense.filter(c => c.name.trim()).map(c =>
+    `<button type="button" class="chip" data-excl="${esc(c.id)}" aria-pressed="${!!c.noTotal}">${c.noTotal ? '✓ ' : ''}${esc(c.name)}</button>`).join('');
+}
+$('#budExcl').addEventListener('click', e => {
+  const b = e.target.closest('[data-excl]'); if (!b) return;
+  const c = catDraft.expense.find(x => x.id === b.dataset.excl); if (c) { c.noTotal = !c.noTotal; paintExcl(); }
+});
 function openSettings(focus) {
   accDraft = state.accounts.map(a => ({ ...a }));
   catDraft = cloneCats(state.cats);
@@ -1147,7 +1223,7 @@ function paintRules() {
     return `<div class="row" role="button" tabindex="0" data-rule="${esc(r.id)}">
       <span class="ico ${r.type}">${icon}</span>
       <span class="rmain"><span class="rtitle">${esc(ruleName(r))}</span>
-        <span class="rsub" style="display:block">毎月${r.day}日・${esc(accName(r.account))}${r.auto ? '・自動で確定' : ''}</span></span>
+        <span class="rsub" style="display:block">毎月${r.day}日・${esc(accName(r.account))}${r.auto ? '・自動で確定' : ''}${r.end ? `・${r.end.slice(0, 4)}/${Number(r.end.slice(5, 7))}/${Number(r.end.slice(8))}まで` : ''}</span></span>
       <span class="ramt num ${r.type}">${sign}${yen(r.amount)}</span></div>`;
   }).join('') : '<div class="empty">まだありません。</div>';
 }
@@ -1196,7 +1272,7 @@ $('#accSave').onclick = async () => {
   if (!clean.length) { $('#accErr').textContent = '口座を1つ以上入れてください。'; return; }
   const cats = {};
   for (const t of ['expense', 'income']) {
-    cats[t] = catDraft[t].map(c => ({ id: c.id, name: c.name.trim().slice(0, 20), ...(t === 'expense' && Number(c.budget) > 0 ? { budget: Number(c.budget) } : {}) })).filter(c => c.name);
+    cats[t] = catDraft[t].map(c => ({ id: c.id, name: c.name.trim().slice(0, 20), ...(t === 'expense' && Number(c.budget) > 0 ? { budget: Number(c.budget) } : {}), ...(t === 'expense' && c.noTotal ? { noTotal: true } : {}) })).filter(c => c.name);
     if (!cats[t].length) { $('#accErr').textContent = (t === 'expense' ? '支出' : '収入') + 'のジャンルを1つ以上入れてください。'; return; }
   }
   const budget = Number($('#budAll').value.replace(/[^\d]/g, '')) || 0;
@@ -1211,7 +1287,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261113101001';
+  const APP_VERSION = '20261113103243';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

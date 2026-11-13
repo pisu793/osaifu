@@ -1169,7 +1169,10 @@ function paintRep() {
   $('#fRep').checked = !!ed.rep;
   $('#rowAuto').hidden = !repOn;
   $('#fAuto').checked = ed.auto !== false;
-  $('#rowEvery').hidden = $('#rowAvg').hidden = $('#rowDue').hidden = !repOn;
+  $('#rowEvery').hidden = $('#rowAvg').hidden = !repOn;
+  // 期限で管理：くり返しでも単発でも使える（くり返しで作られた1回分はくり返し側の設定に従う）
+  const single = !isRule && !isOcc && !ed.rep;
+  $('#rowDue').hidden = isOcc;
   $('#fDue').checked = !!ed.due;
   if (repOn && ed.due) $('#rowAuto').hidden = true;
   const inc = ed.type === 'income';
@@ -1177,11 +1180,17 @@ function paintRep() {
 
   $('#fEvery').value = String(Number(ed.every) || 1);
   $('#fAvg').checked = !!ed.avg;
-  $('#rowPlan').hidden = repOn;
-  $('#dateLabel').textContent = repOn ? (ed.due ? '最初の期限の日' : 'はじまる日') : '日付';
+  $('#rowPlan').hidden = repOn || (single && ed.due);
+  $('#dateLabel').textContent = repOn ? (ed.due ? '最初の期限の日' : 'はじまる日') : (single && ed.due ? (inc ? '入る予定の日' : '期限の日') : '日付');
   const dd0 = new Date((ed.date || state.today) + 'T00:00:00');
   const day = dd0.getDate() === daysIn(dd0.getFullYear(), dd0.getMonth()) ? 31 : (Number(String(ed.date || '').slice(8)) || 1);
-  $('#repHint').hidden = !repOn;
+  $('#repHint').hidden = !repOn && !(single && ed.due);
+  if (single && ed.due) {
+    $('#repHint').textContent = inc
+      ? `この日ごろに入る予定として入ります。入ったら「受け取った」を押すと、その日の日付で記録されます。この日を過ぎても記録がないときにお知らせが出ます。`
+      : `この日までに払う予定として入ります。払ったら「払った」を押すと、その日の日付で記録されます。期限の${DUE_DAYS}日前からお知らせが出ます。`;
+    return;
+  }
   const ev = Number(ed.every) > 1 ? `${ed.every}か月ごとの` : '毎月';
   $('#repHint').textContent = repOn ? (ed.due
       ? (() => {
@@ -1259,7 +1268,12 @@ $('#txSave').onclick = async () => {
   const t = { id: ed.id || uid(), type: ed.type, amount, date: ed.date, account: ed.account, memo: ed.memo,
     planned: !!ed.planned, created: ed.created || Date.now() };
   if (ed.rid && ed.mode !== 'rule') t.rid = ed.rid;
-  if (ed.due && ed.mode !== 'rule') { t.due = true; t.dueDate = ed.dueDate || ed.origDate || t.date; }
+  if (ed.due && ed.mode !== 'rule') {
+    t.due = true;
+    // 単発の期限つき：まだ払っていない（予定の）ものは、期限の日を日付に合わせる
+    if (!ed.id || ed.planned) { t.planned = true; t.dueDate = t.date; }
+    else t.dueDate = ed.dueDate || ed.origDate || t.date;
+  }
   if (ed.type === 'transfer') t.to = ed.to;
   else {
     const c = state.cats[ed.type].find(x => x.id === ed.cat);
@@ -1569,7 +1583,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261113120214';
+  const APP_VERSION = '20261113130744';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

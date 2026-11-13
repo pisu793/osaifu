@@ -105,6 +105,11 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .bal .bv{text-align:right}
 .bal .bv div:first-child{font-weight:600;font-size:16px}
 .bal .bv div:last-child{font-size:11.5px;color:var(--plan)}
+.bal.total{background:var(--fg);color:var(--bg);padding-block:14px}
+.bal.total .bn{font-size:15px}
+.bal.total .bv div:first-child{font-size:20px;font-weight:700}
+.bal.total .bv div:last-child{color:var(--bg);opacity:.75}
+.bal.total + .bal{border-top:0}
 .note{font-size:12px;color:var(--sub);text-align:center;padding-block:18px 28px;line-height:1.6}
 
 /* sheets */
@@ -199,17 +204,6 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .themes i{width:40px;height:40px;border-radius:50%;border:3px solid transparent;box-shadow:inset 0 0 0 2px var(--bg)}
 .themes button[aria-pressed="true"] i{border-color:var(--fg)}
 .themes button[aria-pressed="true"]{color:var(--fg);font-weight:600}
-.f .pick{color:var(--accent);font-weight:600;cursor:pointer}
-.stkctl{display:flex;gap:18px;align-items:center}
-.stkctl button{color:var(--out)}
-.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
-.seg.small{margin:0;width:160px;flex:none}
-.seg.small button{padding:5px 0;font-size:13px}
-#sticker{position:fixed;z-index:4;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18));cursor:grab;height:auto}
-#sticker.dragging{cursor:grabbing;filter:drop-shadow(0 10px 16px rgba(0,0,0,.25))}
-#sticker.boing{animation:boing .45s ease}
-@keyframes boing{0%{transform:scale(1)}35%{transform:scale(1.15,.88)}65%{transform:scale(.94,1.08)}100%{transform:scale(1)}}
-@media (prefers-reduced-motion:reduce){#sticker.boing{animation:none}}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13.5px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 </style>
@@ -274,7 +268,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 
   <section class="section">
     <div class="shead"><h2>残高</h2><button type="button" class="edit" data-settings="acc">口座を編集</button></div>
-    <p class="meta" style="margin:-4px 0 8px;font-size:12px;color:var(--sub)">上が確定分、下の黄色が予定込みの残高</p>
+    <p class="meta" style="margin:-4px 0 8px;font-size:12px;color:var(--sub)">大きい数字が今の残高、下の小さい数字が予定込みの残高</p>
     <div class="list" id="balList"></div>
   </section>
 
@@ -319,12 +313,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
     </div>
     <p class="lbl">テーマカラー</p>
     <div class="themes" id="themes" role="group" aria-label="テーマカラー"></div>
-    <p class="lbl sublbl">ミニキャラ画像</p>
-    <div class="form">
-      <div class="f"><span>画像</span><span class="stkctl"><label class="pick" for="stkFile">画像を選ぶ</label><input type="file" id="stkFile" class="vh" accept="image/*"><button type="button" id="stkDel" hidden>はずす</button></span></div>
-      <div class="f"><span>大きさ</span><div class="seg small" id="stkSize" role="group" aria-label="大きさ"><button type="button" data-size="s">小</button><button type="button" data-size="m">中</button><button type="button" data-size="l">大</button></div></div>
-    </div>
-    <p class="hint">見た目の設定はすぐ反映されます。画像はこの端末の中にだけ保存され、外には出ません。置いたミニキャラは指でドラッグして好きな場所に動かせます。</p>
+    <p class="hint">テーマカラーはタップするとすぐ反映されます。</p>
     <p class="lbl sublbl" id="secAcc">口座・おさいふ（名前 ／ はじめの残高）</p>
     <div class="form" id="accList"></div>
     <p class="hint">名前はタップして書き換えられます。はじめの残高に今の手持ち額を入れておくと、残高が実際の金額と合います。</p>
@@ -337,7 +326,6 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
   </div>
 </div>
 
-<img id="sticker" alt="ミニキャラ" hidden draggable="false">
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -375,7 +363,7 @@ const state = {
 };
 const catName = t => (state.cats[t.type] || []).find(c => c.id === t.cat)?.name || t.category || 'その他';
 
-/* ---------- appearance: theme color + mini character sticker (kept on this device) ---------- */
+/* ---------- appearance: theme color (kept on this device) ---------- */
 const COLORS = [['red', 'いちご', '#ff3b30'], ['yellow', 'レモン', '#f5b700'], ['pink', 'さくら', '#e8578a'], ['blue', 'そら', '#2a78d6']];
 let colorKey = (() => { try { return localStorage.getItem('osaifu.color') || 'red'; } catch { return 'red'; } })();
 function applyColor() {
@@ -385,74 +373,10 @@ function applyColor() {
 function paintThemes() {
   $('#themes').innerHTML = COLORS.map(([k, n, hex]) =>
     `<button type="button" data-color="${k}" aria-pressed="${k === colorKey}"><i style="background:${hex}"></i>${n}</button>`).join('');
-  document.querySelectorAll('#stkSize [data-size]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.size === (stk?.size || 'm'))));
-  $('#stkDel').hidden = !stk?.src;
 }
 applyColor();
 
-let stk = lsGet('osaifu.sticker', null); // {src, size, x, y}  x,y = 画面に対する位置(0〜1)
-const STK_PX = { s: 64, m: 100, l: 150 };
-function saveStk() {
-  try { if (stk) localStorage.setItem('osaifu.sticker', JSON.stringify(stk)); else localStorage.removeItem('osaifu.sticker'); return true; }
-  catch { return false; }
-}
-function placeStk() {
-  const el = $('#sticker');
-  if (!stk?.src) { el.hidden = true; return; }
-  const w = STK_PX[stk.size || 'm'];
-  el.style.width = w + 'px';
-  if (el.getAttribute('src') !== stk.src) el.src = stk.src;
-  el.hidden = false;
-  const h = el.offsetHeight || w;
-  const vw = innerWidth, vh = innerHeight;
-  let x = stk.x == null ? vw - w - 16 : stk.x * vw;
-  let y = stk.y == null ? vh - h - 40 : stk.y * vh;
-  x = Math.min(Math.max(0, x), vw - w); y = Math.min(Math.max(0, y), vh - h);
-  el.style.left = x + 'px'; el.style.top = y + 'px';
-}
-$('#sticker').addEventListener('load', placeStk);
-addEventListener('resize', placeStk);
-(() => {
-  const el = $('#sticker'); let drag = null;
-  el.addEventListener('pointerdown', e => {
-    e.preventDefault(); el.setPointerCapture(e.pointerId);
-    const r = el.getBoundingClientRect();
-    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, sx: e.clientX, sy: e.clientY, moved: false };
-  });
-  el.addEventListener('pointermove', e => {
-    if (!drag) return;
-    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 5) { drag.moved = true; el.classList.add('dragging'); }
-    if (!drag.moved) return;
-    const x = Math.min(Math.max(0, e.clientX - drag.dx), innerWidth - el.offsetWidth);
-    const y = Math.min(Math.max(0, e.clientY - drag.dy), innerHeight - el.offsetHeight);
-    el.style.left = x + 'px'; el.style.top = y + 'px';
-  });
-  const end = () => {
-    if (!drag) return;
-    el.classList.remove('dragging');
-    if (drag.moved) { stk.x = parseFloat(el.style.left) / innerWidth; stk.y = parseFloat(el.style.top) / innerHeight; saveStk(); }
-    else { el.classList.remove('boing'); void el.offsetWidth; el.classList.add('boing'); }
-    drag = null;
-  };
-  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
-})();
-function shrinkImage(file, max) {
-  return new Promise((res, rej) => {
-    const url = URL.createObjectURL(file), img = new Image();
-    img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      const alpha = /png|webp|gif/.test(file.type);
-      res(c.toDataURL(alpha ? 'image/png' : 'image/jpeg', 0.85));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('load')); };
-    img.src = url;
-  });
-}
-placeStk();
+try { localStorage.removeItem('osaifu.sticker'); } catch {} // 以前のミニキャラ画像を片づける
 
 /* ---------- storage: private cloud db per person, browser storage as fallback ---------- */
 const store = {
@@ -584,7 +508,7 @@ function render() {
     if (n) lines += `<div class="amt i num">+${short(n)}</div>`;
     if (po) lines += `<div class="amt p num">-${short(po)}</div>`;
     if (pn) lines += `<div class="amt p num">+${short(pn)}</div>`;
-    const dots = (mv ? '<span class="dot m"></span>' : '') + (anyPlan && !po && !pn ? '<span class="dot p"></span>' : '');
+    const dots = (anyPlan && !po && !pn ? '<span class="dot p"></span>' : '');
     h += `<button type="button" class="${cls.join(' ')}" data-day="${key}" aria-label="${m+1}月${d}日${list.length ? '、' + list.length + '件' : ''}">
       <span class="dnum num">${d}</span>${lines}<span class="dots">${dots}</span></button>`;
   }
@@ -623,7 +547,12 @@ function render() {
 
   // balances
   const b = balances();
-  $('#balList').innerHTML = state.accounts.map(a => {
+  let sumNow = 0, sumPlan = 0;
+  state.accounts.forEach(a => { sumNow += b[a.id]?.now || 0; sumPlan += b[a.id]?.plan || 0; });
+  const total = state.accounts.length ? `<div class="bal total"><span class="bn">合計</span>
+      <span class="bv num"><div>${sumNow < 0 ? '−' : ''}${yen(sumNow)}</div>
+      <div>${sumPlan !== sumNow ? '予定込み ' + (sumPlan < 0 ? '−' : '') + yen(sumPlan) : ''}</div></span></div>` : '';
+  $('#balList').innerHTML = total + state.accounts.map(a => {
     const v = b[a.id] || { now: 0, plan: 0 };
     const diff = v.plan !== v.now;
     return `<div class="bal"><span class="bn">${esc(a.name)}</span>
@@ -941,23 +870,6 @@ $('#themes').addEventListener('click', e => {
   colorKey = b.dataset.color; applyColor(); paintThemes();
   try { localStorage.setItem('osaifu.color', colorKey); } catch {}
 });
-$('#stkSize').addEventListener('click', e => {
-  const b = e.target.closest('[data-size]'); if (!b) return;
-  if (!stk?.src) { $('#accErr').textContent = '先に「画像を選ぶ」でミニキャラの画像を選んでください。'; return; }
-  stk.size = b.dataset.size; saveStk(); placeStk(); paintThemes();
-});
-$('#stkFile').addEventListener('change', async e => {
-  const f = e.target.files && e.target.files[0]; e.target.value = '';
-  if (!f) return;
-  try {
-    const src = await shrinkImage(f, 400);
-    const prev = stk;
-    stk = { src, size: prev?.size || 'm', x: prev?.x ?? null, y: prev?.y ?? null };
-    if (!saveStk()) { stk = prev; $('#accErr').textContent = '画像が大きすぎて保存できませんでした。小さめの画像で試してください。'; return; }
-    $('#accErr').textContent = ''; placeStk(); paintThemes(); toast('ミニキャラを置きました');
-  } catch { $('#accErr').textContent = '画像を読み込めませんでした。別の画像で試してください。'; }
-});
-$('#stkDel').onclick = () => { stk = null; saveStk(); placeStk(); paintThemes(); toast('ミニキャラをはずしました'); };
 // 並べ替え（▲▼）
 $('#accSheet').addEventListener('click', e => {
   const b = e.target.closest('[data-mv]'); if (!b || b.disabled) return;

@@ -653,18 +653,21 @@ function shortages() {
   }
   return out;
 }
+const ALERT_DAYS = 2; // 支払いの何日前からお知らせを出すか
 function renderAlerts() {
-  const list = state.ready ? shortages() : [];
-  const tomorrow = ymd(new Date(new Date(state.today + 'T00:00:00').getTime() + 864e5));
-  const when = d => d < state.today ? '過ぎた予定' : d === state.today ? '今日' : d === tomorrow ? 'あした' : `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
+  const all = state.ready ? shortages() : [];
+  const addD = n => ymd(new Date(new Date(state.today + 'T00:00:00').getTime() + n * 864e5));
+  const tomorrow = addD(1), day2 = addD(2), limit = addD(ALERT_DAYS);
+  const list = all.filter(x => x.date <= limit);
+  const when = d => d < state.today ? '過ぎた予定' : d === state.today ? '今日' : d === tomorrow ? 'あした' : d === day2 ? 'あさって' : `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
   $('#alerts').innerHTML = list.map(x => {
     const name = x.tx.type === 'transfer' ? '移動' : (x.tx.memo || catName(x.tx));
     const soon = x.date <= tomorrow;
     return `<div class="alert${soon ? ' soon' : ''}" role="status"><span class="ai">!</span><span class="am">
-      <b>${when(x.date)}</b>の「${esc(name)}」${yen(x.tx.amount)}で、<b>${esc(accName(x.acc))}</b>が <b>${yen(x.short)}</b> 足りなくなります。
+      <b>${when(x.date)}${/^\d/.test(when(x.date)) ? '' : `（${Number(x.date.slice(5, 7))}/${Number(x.date.slice(8))}）`}</b>の「${esc(name)}」${yen(x.tx.amount)}で、<b>${esc(accName(x.acc))}</b>が <b>${yen(x.short)}</b> 足りなくなります。
       <span class="aa"><button type="button" data-charge="${esc(x.acc)}" data-amt="${x.short}" data-date="${x.date}">チャージを記録</button><button type="button" data-goto="${x.date}">その日を見る</button></span></span></div>`;
   }).join('');
-  return list;
+  return all;
 }
 $('#alerts').addEventListener('click', e => {
   const c = e.target.closest('[data-charge]');
@@ -1437,7 +1440,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261113104820';
+  const APP_VERSION = '20261113105655';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

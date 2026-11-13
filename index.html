@@ -369,7 +369,7 @@ input,select,textarea{font-size:16px}
       <div class="f" id="rowApply" hidden><label for="fApply">これ以降の月にも反映</label><span class="switch"><input type="checkbox" id="fApply" role="switch"><i></i></span></div>
       <div class="f" id="rowEvery" hidden><label for="fEvery">くり返す間かく</label><select id="fEvery">
         <option value="1">毎月</option><option value="2">2か月ごと</option><option value="3">3か月ごと</option><option value="6">6か月ごと</option><option value="12">1年ごと</option></select></div>
-      <div class="f" id="rowDue" hidden><label for="fDue">期限で管理（この日までに払う）</label><span class="switch"><input type="checkbox" id="fDue" role="switch"><i></i></span></div>
+      <div class="f" id="rowDue" hidden><label for="fDue" id="dueLabel">期限で管理（この日までに払う）</label><span class="switch"><input type="checkbox" id="fDue" role="switch"><i></i></span></div>
       <div class="f" id="rowAvg" hidden><label for="fAvg">金額は最近3回の平均で予想</label><span class="switch"><input type="checkbox" id="fAvg" role="switch"><i></i></span></div>
       <div class="f" id="rowAuto" hidden><label for="fAuto">日付が来たら自動で確定</label><span class="switch"><input type="checkbox" id="fAuto" role="switch"><i></i></span></div>
     </div>
@@ -556,7 +556,12 @@ async function init() {
 const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
 const ruleName = r => r.memo || (r.type === 'transfer' ? `${accName(r.account)} → ${accName(r.to)}` : catName(r));
 const everyLabel = r => (Number(r.every) > 1 ? `${r.every}か月ごと` : '毎月');
-const dayLabel = r => (Number(r.day) >= 31 ? '月末' : `${r.day}日`) + (r.due ? 'までに' : '');
+const dayLabel = r => (Number(r.day) >= 31 ? '月末' : `${r.day}日`) + (r.due ? (r.type === 'income' ? 'ごろ' : 'までに') : '');
+const md = d => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
+const shiftD = (d, n) => ymd(new Date(new Date(d + 'T00:00:00').getTime() + n * 864e5));
+// 期限つきの表示用ラベル（収入は「入金予定」、支出は「〆切」）
+const dueRange = t => md(t.date);
+const paidWord = t => (t.type === 'income' ? '受け取った' : '払った');
 // 「最近の平均で予想」：実際の金額に直して確定した直近3回の平均（10円単位）。まだなければ登録した金額
 function predictAmt(r) {
   if (!r.avg) return r.amount;
@@ -698,16 +703,19 @@ function renderAlerts() {
   const list = all.filter(x => x.date <= limit);
   const when = d => d < state.today ? '過ぎた予定' : d === state.today ? '今日' : d === tomorrow ? 'あした' : d === day2 ? 'あさって' : `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
   const dueLimit = addD(DUE_DAYS);
-  const dues = state.ready ? state.txs.filter(t => t.due && t.planned && t.date <= dueLimit).sort((a, b) => (a.date < b.date ? -1 : 1)) : [];
-  const md = d => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
+  // 支払い：期限の3日前（期間があればその始まり）から。収入：予定の時期を過ぎても記録がないときだけ
+  const dues = state.ready ? state.txs.filter(t => t.due && t.planned && (t.type === 'income'
+    ? t.date < state.today
+    : t.date <= dueLimit)).sort((a, b) => (a.date < b.date ? -1 : 1)) : [];
   const dueHtml = dues.map(t => {
     const name = t.memo || catName(t);
     const days = Math.round((new Date(t.date + 'T00:00:00') - new Date(state.today + 'T00:00:00')) / 864e5);
-    const msg = days < 0 ? `「${esc(name)}」${yen(t.amount)}の<b>期限を過ぎています</b>（${md(t.date)}まで）。`
+    const msg = t.type === 'income' ? `「${esc(name)}」${yen(t.amount)}が<b>まだ記録されていません</b>（${md(t.date)}ごろの予定）。`
+      : days < 0 ? `「${esc(name)}」${yen(t.amount)}の<b>期限を過ぎています</b>（${md(t.date)}まで）。`
       : days === 0 ? `<b>今日</b>が「${esc(name)}」${yen(t.amount)}の期限です。`
       : `「${esc(name)}」${yen(t.amount)}の期限まで<b>あと${days}日</b>（${md(t.date)}まで）。`;
-    return `<div class="alert${days <= 1 ? ' soon' : ''}" role="status"><span class="ai">!</span><span class="am">${msg}
-      <span class="aa"><button type="button" data-paid="${esc(t.id)}">払った</button><button type="button" data-goto="${t.date}">その日を見る</button></span></span></div>`;
+    return `<div class="alert${days <= 1 && t.type !== 'income' ? ' soon' : ''}" role="status"><span class="ai">!</span><span class="am">${msg}
+      <span class="aa"><button type="button" data-paid="${esc(t.id)}">${paidWord(t)}</button><button type="button" data-goto="${t.date}">その日を見る</button></span></span></div>`;
   }).join('');
   $('#alerts').innerHTML = dueHtml + list.map(x => {
     const name = x.tx.type === 'transfer' ? '移動' : (x.tx.memo || catName(x.tx));
@@ -783,8 +791,9 @@ function render() {
     if (n) lines += `<div class="amt i num">+${short(n)}</div>`;
     if (po) lines += `<div class="amt p num">-${short(po)}</div>`;
     if (pn) lines += `<div class="amt p num">+${short(pn)}</div>`;
-    const dueHere = list.some(t => t.due && t.planned);
-    const dots = (warnDays.has(key) ? '<span class="warnmark">不足</span>' : dueHere ? '<span class="duemark">〆切</span>' : '') + (anyPlan && !po && !pn && !warnDays.has(key) ? '<span class="dot p"></span>' : '');
+    const dueT = list.find(t => t.due && t.planned);
+    const dueMark = dueT ? `<span class="duemark">${dueT.type === 'income' ? '入金' : '〆切'}</span>` : '';
+    const dots = (warnDays.has(key) ? '<span class="warnmark">不足</span>' : dueMark) + (anyPlan && !po && !pn && !warnDays.has(key) ? '<span class="dot p"></span>' : '');
     h += `<button type="button" class="${cls.join(' ')}" data-day="${key}" aria-label="${m+1}月${d}日${list.length ? '、' + list.length + '件' : ''}">
       <span class="dnum num">${d}</span>${lines}<span class="dots">${dots}</span></button>`;
   }
@@ -811,10 +820,10 @@ function render() {
       const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '';
       return `<div class="row" role="button" tabindex="0" data-edit="${esc(t.id)}">
         <span class="ico ${t.type}">${icon}</span>
-        <span class="rmain"><span class="rtitle">${title}${t.planned ? (t.due ? `<span class="pill due">〆切 ${Number(t.date.slice(5, 7))}/${Number(t.date.slice(8))}</span>` : '<span class="pill">予定</span>') : ''}${t.rid ? `<span class="pill rep">${t.est ? '目安' : (() => { const r = state.rules.find(x => x.id === t.rid); return r ? everyLabel(r) : 'くり返し'; })()}</span>` : ''}</span>
+        <span class="rmain"><span class="rtitle">${title}${t.planned ? (t.due ? `<span class="pill due">${t.type === 'income' ? '入金予定' : '〆切'} ${dueRange(t)}</span>` : '<span class="pill">予定</span>') : ''}${t.rid ? `<span class="pill rep">${t.est ? '目安' : (() => { const r = state.rules.find(x => x.id === t.rid); return r ? everyLabel(r) : 'くり返し'; })()}</span>` : ''}</span>
           <span class="rsub" style="display:block">${sub}</span></span>
         <span style="text-align:right"><div class="ramt num ${t.type}">${sign}${yen(a)}</div>
-          ${t.planned ? `<button type="button" class="confirm" data-confirm="${esc(t.id)}">${t.due ? '払った' : '確定する'}</button>` : ''}</span>
+          ${t.planned ? `<button type="button" class="confirm" data-confirm="${esc(t.id)}">${t.due ? paidWord(t) : '確定する'}</button>` : ''}</span>
       </div>`;
     };
     // 収入・支出・移動ごとにまとめて、タップで中身を開く
@@ -1163,6 +1172,9 @@ function paintRep() {
   $('#rowEvery').hidden = $('#rowAvg').hidden = $('#rowDue').hidden = !repOn;
   $('#fDue').checked = !!ed.due;
   if (repOn && ed.due) $('#rowAuto').hidden = true;
+  const inc = ed.type === 'income';
+  $('#dueLabel').textContent = inc ? '時期で管理（このころに入る）' : '期限で管理（この日までに払う）';
+
   $('#fEvery').value = String(Number(ed.every) || 1);
   $('#fAvg').checked = !!ed.avg;
   $('#rowPlan').hidden = repOn;
@@ -1172,7 +1184,12 @@ function paintRep() {
   $('#repHint').hidden = !repOn;
   const ev = Number(ed.every) > 1 ? `${ed.every}か月ごとの` : '毎月';
   $('#repHint').textContent = repOn ? (ed.due
-      ? `${ev}${day >= 31 ? '月末' : day + '日'}までに払う予定として入ります（その日がない月は月末）。払ったら「払った」を押すと、その日の日付で記録されます。期限の${DUE_DAYS}日前からお知らせが出ます。`
+      ? (() => {
+          const dn = day >= 31 ? '月末' : day + '日';
+          return ed.type === 'income'
+            ? `${ev}${dn}ごろに入る予定として入ります。入ったら「受け取った」を押すと、その日の日付で記録されます。${dn}を過ぎても記録がないときにお知らせが出ます。`
+            : `${ev}${dn}までに払う予定として入ります（その日がない月は月末）。払ったら「払った」を押すと、その日の日付で記録されます。期限の${DUE_DAYS}日前からお知らせが出ます。`;
+        })()
       : `${ev}${day >= 31 ? '月末' : day + '日'}に記録します（その日がない月は月末）。先の月にもずっと予定として表示されます。`)
     + (ed.avg ? '金額は、実際に確定した直近3回の平均で予想します（最初は入れた金額）。' : '') : '';
 }
@@ -1208,6 +1225,7 @@ function openTx(t, prefill) {
   $('#txDel').hidden = !t || !!t.rid; $('#txDel').textContent = 'この記録を削除';
   $('#occDel').hidden = $('#occDelHint').hidden = !(t && t.rid);
   $('#undoPaid').hidden = !(t && t.due && !t.planned);
+  if (t && t.due) $('#undoPaid').textContent = `「${paidWord(t)}」を取り消して予定に戻す`;
   $('#delOne').textContent = 'この月だけ削除'; $('#delAll').textContent = 'これ以降すべて削除'; armOne = armAll = false;
   paintForm();
   show($('#txSheet'));
@@ -1367,7 +1385,7 @@ async function markPaid(t) {
   const { virtual, ...rest } = t;
   const upd = { ...rest, planned: false };
   if (t.due) { upd.dueDate = t.dueDate || t.date; upd.date = state.today; }
-  try { await store.saveTx(upd); toast(t.due ? `払った日（${Number(state.today.slice(5, 7))}/${Number(state.today.slice(8))}）で記録しました` : '確定しました'); }
+  try { await store.saveTx(upd); toast(t.due ? `${paidWord(t)}日（${md(state.today)}）で記録しました` : '確定しました'); }
   catch { toast('保存できませんでした'); }
 }
 const findTx = id => state.txs.find(x => x.id === id) || monthTxs(state.y, state.m).find(x => x.id === id);
@@ -1551,7 +1569,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261113114600';
+  const APP_VERSION = '20261113120214';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

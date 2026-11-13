@@ -19,7 +19,7 @@
   --bg:#ffffff; --surface:#f2f2f7; --card:#ffffff; --line:#e3e3e8;
   --fg:#111114; --sub:#8a8a92; --today:#ff3b30; --sel:#111114; --selfg:#ffffff;
   --out:#e5484d; --in:#2f9e5b; --move:#3a7bd5; --plan:#b07a12; --planbg:#fff4dc;
-  --accent:#ff3b30; --scrim:rgba(0,0,0,.32); --todayfg:#ffffff; --hl:#ffe1dd; --hlfg:#3a0d09;
+  --accent:#ff3b30; --scrim:rgba(0,0,0,.32); --todayfg:#ffffff; --hl:#ffe1dd; --hlfg:#3a0d09; --sun:#e58a80; --sat:#7fa3d8;
   --ok:#2f9e5b; --warn:#d97a00; --warnbg:#fff0d9; --warnfg:#5a3300;
   --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --sx:#b4b4ba;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;
@@ -28,13 +28,13 @@
   --bg:#000000; --surface:#1c1c1e; --card:#1c1c1e; --line:#2c2c2e;
   --fg:#f5f5f7; --sub:#8e8e93; --today:#ff453a; --sel:#f5f5f7; --selfg:#000000;
   --out:#ff6b6b; --in:#4cc47c; --move:#6aa2ff; --plan:#e0a93a; --planbg:#3a2c0f;
-  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark; --hl:#4a1a17; --hlfg:#ffe1dd; --ok:#4cc47c; --warn:#f0a43a; --warnbg:#3a2a10; --warnfg:#ffe2b8;
+  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark; --hl:#4a1a17; --hlfg:#ffe1dd; --sun:#e8968c; --sat:#8fb0e0; --ok:#4cc47c; --warn:#f0a43a; --warnbg:#3a2a10; --warnfg:#ffe2b8;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --sx:#5a5a60 }}
 :root[data-theme="dark"]{
   --bg:#000000; --surface:#1c1c1e; --card:#1c1c1e; --line:#2c2c2e;
   --fg:#f5f5f7; --sub:#8e8e93; --today:#ff453a; --sel:#f5f5f7; --selfg:#000000;
   --out:#ff6b6b; --in:#4cc47c; --move:#6aa2ff; --plan:#e0a93a; --planbg:#3a2c0f;
-  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark; --hl:#4a1a17; --hlfg:#ffe1dd; --ok:#4cc47c; --warn:#f0a43a; --warnbg:#3a2a10; --warnfg:#ffe2b8;
+  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark; --hl:#4a1a17; --hlfg:#ffe1dd; --sun:#e8968c; --sat:#8fb0e0; --ok:#4cc47c; --warn:#f0a43a; --warnbg:#3a2a10; --warnfg:#ffe2b8;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --sx:#5a5a60 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-text-size-adjust:100%}
@@ -58,7 +58,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .nav button{width:34px;height:34px;border-radius:50%;color:var(--accent);font-size:20px}
 .nav button:active{background:var(--surface)}
 .dow{display:grid;grid-template-columns:repeat(7,1fr);font-size:11px;color:var(--sub);text-align:center;padding-block:0 6px}
-.dow span:first-child,.dow span:last-child{color:var(--sub);opacity:.75}
+.dow span:first-child{color:var(--sun)} .dow span:last-child{color:var(--sat)}
 
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-block:12px 4px}
 .sum{display:flex;flex-direction:column;gap:2px}
@@ -70,7 +70,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .cell{min-height:64px;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 1px 4px;min-width:0;text-align:center}
 .cell.blank{pointer-events:none}
 .dnum{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:16px}
-.cell.wkend .dnum{color:var(--sub)}
+.cell.sun .dnum{color:var(--sun)} .cell.sat .dnum{color:var(--sat)}
 .cell.today .dnum{color:var(--today);font-weight:700}
 .cell.sel .dnum{background:var(--sel);color:var(--selfg);font-weight:600}
 .cell.sel.today .dnum{background:var(--today);color:var(--todayfg)}
@@ -202,6 +202,8 @@ input,select,textarea{font-size:16px}
 .alert .aa button{color:var(--warnfg);font-weight:700;font-size:13px;text-decoration:underline;text-underline-offset:3px}
 .alert.soon{outline:2px solid var(--warn)}
 .cell .warnmark{font-size:9px;font-weight:800;color:var(--warn);line-height:1}
+.pill.due{background:var(--warnbg);color:var(--warnfg)}
+.cell .duemark{font-size:9px;font-weight:800;color:var(--accent);line-height:1}
 /* day list groups */
 .row.grp .chev{flex:none;color:var(--sub);font-size:20px;transition:transform .15s;margin-left:2px}
 .row.grp.open .chev{transform:rotate(90deg)}
@@ -243,21 +245,21 @@ input,select,textarea{font-size:16px}
 .delpair .danger{padding:12px 6px;font-size:14px}
 .rulelist .row{border-top:1px solid var(--line)} .rulelist .row:first-child{border-top:0}
 /* theme colors (chosen in settings) */
-:root[data-color="yellow"]{--bg:#fffdf4;--surface:#fff4cc;--card:#fffdf4;--line:#f0e3b2;--today:#f5b700;--todayfg:#2a2100;--accent:#9c6b00;--plan:#7c5cd6;--planbg:#eee9ff;--hl:#ffd84d;--hlfg:#2a2100}
-@media (prefers-color-scheme: dark){:root[data-color="yellow"]:not([data-theme="light"]){--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445;--hl:#ffc933;--hlfg:#2a2100}}
-:root[data-color="yellow"][data-theme="dark"]{--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445;--hl:#ffc933;--hlfg:#2a2100}
-:root[data-color="pink"]{--bg:#fffafb;--surface:#fdebf0;--card:#fffafb;--line:#f3d5de;--today:#e8578a;--todayfg:#ffffff;--accent:#d23f74;--plan:#b07a12;--planbg:#fff4dc;--hl:#ffcfdf;--hlfg:#45102a}
-@media (prefers-color-scheme: dark){:root[data-color="pink"]:not([data-theme="light"]){--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#5a2238;--hlfg:#ffe0ea}}
-:root[data-color="pink"][data-theme="dark"]{--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#5a2238;--hlfg:#ffe0ea}
-:root[data-color="blue"]{--bg:#fbfdff;--surface:#eaf2fc;--card:#fbfdff;--line:#d3e2f4;--today:#2a78d6;--todayfg:#ffffff;--accent:#1f6cc7;--plan:#b07a12;--planbg:#fff4dc;--hl:#cfe2fb;--hlfg:#0b2240}
-@media (prefers-color-scheme: dark){:root[data-color="blue"]:not([data-theme="light"]){--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#183456;--hlfg:#dcebff}}
-:root[data-color="blue"][data-theme="dark"]{--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#183456;--hlfg:#dcebff}
-:root[data-color="green"]{--bg:#f8fcf8;--surface:#e6f4e6;--card:#f8fcf8;--line:#cfe6cf;--today:#2e9a4f;--todayfg:#ffffff;--accent:#237a3d;--plan:#b07a12;--planbg:#fff4dc;--hl:#b9e4c2;--hlfg:#0d2e17}
-@media (prefers-color-scheme: dark){:root[data-color="green"]:not([data-theme="light"]){--bg:#050a06;--surface:#132016;--card:#132016;--line:#213426;--today:#4cc47c;--todayfg:#04210f;--accent:#5fd08b;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#2c6b3f;--hlfg:#e1f7e8}}
-:root[data-color="green"][data-theme="dark"]{--bg:#050a06;--surface:#132016;--card:#132016;--line:#213426;--today:#4cc47c;--todayfg:#04210f;--accent:#5fd08b;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#2c6b3f;--hlfg:#e1f7e8}
-:root[data-color="brown"]{--bg:#fdf9f4;--surface:#f3e8db;--card:#fdf9f4;--line:#e6d5c1;--today:#8b5a2b;--todayfg:#ffffff;--accent:#8b5a2b;--plan:#b07a12;--planbg:#fff4dc;--hl:#e2c4a0;--hlfg:#3a2410}
-@media (prefers-color-scheme: dark){:root[data-color="brown"]:not([data-theme="light"]){--bg:#0d0a07;--surface:#221a12;--card:#221a12;--line:#362a1e;--today:#c8955f;--todayfg:#1e1208;--accent:#d4a373;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#c8955f;--hlfg:#1e1208}}
-:root[data-color="brown"][data-theme="dark"]{--bg:#0d0a07;--surface:#221a12;--card:#221a12;--line:#362a1e;--today:#c8955f;--todayfg:#1e1208;--accent:#d4a373;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#c8955f;--hlfg:#1e1208}
+:root[data-color="yellow"]{--bg:#fffdf4;--surface:#fff4cc;--card:#fffdf4;--line:#f0e3b2;--today:#f5b700;--todayfg:#2a2100;--accent:#9c6b00;--plan:#7c5cd6;--planbg:#eee9ff;--hl:#ffd84d;--hlfg:#2a2100;--sun:#e0897e;--sat:#7ea3d6}
+@media (prefers-color-scheme: dark){:root[data-color="yellow"]:not([data-theme="light"]){--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445;--hl:#ffc933;--hlfg:#2a2100;--sun:#e39a8f;--sat:#8eaee0}}
+:root[data-color="yellow"][data-theme="dark"]{--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445;--hl:#ffc933;--hlfg:#2a2100;--sun:#e39a8f;--sat:#8eaee0}
+:root[data-color="pink"]{--bg:#fffafb;--surface:#fdebf0;--card:#fffafb;--line:#f3d5de;--today:#e8578a;--todayfg:#ffffff;--accent:#d23f74;--plan:#b07a12;--planbg:#fff4dc;--hl:#ffcfdf;--hlfg:#45102a;--sun:#e07f8f;--sat:#8aa6d6}
+@media (prefers-color-scheme: dark){:root[data-color="pink"]:not([data-theme="light"]){--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#5a2238;--hlfg:#ffe0ea;--sun:#e8909e;--sat:#93b0e0}}
+:root[data-color="pink"][data-theme="dark"]{--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#5a2238;--hlfg:#ffe0ea;--sun:#e8909e;--sat:#93b0e0}
+:root[data-color="blue"]{--bg:#fbfdff;--surface:#eaf2fc;--card:#fbfdff;--line:#d3e2f4;--today:#2a78d6;--todayfg:#ffffff;--accent:#1f6cc7;--plan:#b07a12;--planbg:#fff4dc;--hl:#cfe2fb;--hlfg:#0b2240;--sun:#e08a86;--sat:#6f9bd8}
+@media (prefers-color-scheme: dark){:root[data-color="blue"]:not([data-theme="light"]){--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#183456;--hlfg:#dcebff;--sun:#e89a94;--sat:#7ea9e8}}
+:root[data-color="blue"][data-theme="dark"]{--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#183456;--hlfg:#dcebff;--sun:#e89a94;--sat:#7ea9e8}
+:root[data-color="green"]{--bg:#f8fcf8;--surface:#e6f4e6;--card:#f8fcf8;--line:#cfe6cf;--today:#2e9a4f;--todayfg:#ffffff;--accent:#237a3d;--plan:#b07a12;--planbg:#fff4dc;--hl:#b9e4c2;--hlfg:#0d2e17;--sun:#df8a7c;--sat:#78a0cc}
+@media (prefers-color-scheme: dark){:root[data-color="green"]:not([data-theme="light"]){--bg:#050a06;--surface:#132016;--card:#132016;--line:#213426;--today:#4cc47c;--todayfg:#04210f;--accent:#5fd08b;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#2c6b3f;--hlfg:#e1f7e8;--sun:#e69a8c;--sat:#8bb0d8}}
+:root[data-color="green"][data-theme="dark"]{--bg:#050a06;--surface:#132016;--card:#132016;--line:#213426;--today:#4cc47c;--todayfg:#04210f;--accent:#5fd08b;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#2c6b3f;--hlfg:#e1f7e8;--sun:#e69a8c;--sat:#8bb0d8}
+:root[data-color="brown"]{--bg:#fdf9f4;--surface:#f3e8db;--card:#fdf9f4;--line:#e6d5c1;--today:#8b5a2b;--todayfg:#ffffff;--accent:#8b5a2b;--plan:#b07a12;--planbg:#fff4dc;--hl:#e2c4a0;--hlfg:#3a2410;--sun:#cf8a78;--sat:#8aa0c4}
+@media (prefers-color-scheme: dark){:root[data-color="brown"]:not([data-theme="light"]){--bg:#0d0a07;--surface:#221a12;--card:#221a12;--line:#362a1e;--today:#c8955f;--todayfg:#1e1208;--accent:#d4a373;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#c8955f;--hlfg:#1e1208;--sun:#dca08f;--sat:#9fb2d2}}
+:root[data-color="brown"][data-theme="dark"]{--bg:#0d0a07;--surface:#221a12;--card:#221a12;--line:#362a1e;--today:#c8955f;--todayfg:#1e1208;--accent:#d4a373;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#c8955f;--hlfg:#1e1208;--sun:#dca08f;--sat:#9fb2d2}
 .themes{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-bottom:6px}
 .themes button{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;color:var(--sub);padding:4px 0;min-width:0}
 .themes i{width:40px;height:40px;border-radius:50%;border:3px solid transparent;box-shadow:inset 0 0 0 2px var(--bg)}
@@ -367,6 +369,7 @@ input,select,textarea{font-size:16px}
       <div class="f" id="rowApply" hidden><label for="fApply">これ以降の月にも反映</label><span class="switch"><input type="checkbox" id="fApply" role="switch"><i></i></span></div>
       <div class="f" id="rowEvery" hidden><label for="fEvery">くり返す間かく</label><select id="fEvery">
         <option value="1">毎月</option><option value="2">2か月ごと</option><option value="3">3か月ごと</option><option value="6">6か月ごと</option><option value="12">1年ごと</option></select></div>
+      <div class="f" id="rowDue" hidden><label for="fDue">期限で管理（この日までに払う）</label><span class="switch"><input type="checkbox" id="fDue" role="switch"><i></i></span></div>
       <div class="f" id="rowAvg" hidden><label for="fAvg">金額は最近3回の平均で予想</label><span class="switch"><input type="checkbox" id="fAvg" role="switch"><i></i></span></div>
       <div class="f" id="rowAuto" hidden><label for="fAuto">日付が来たら自動で確定</label><span class="switch"><input type="checkbox" id="fAuto" role="switch"><i></i></span></div>
     </div>
@@ -552,6 +555,7 @@ async function init() {
 const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
 const ruleName = r => r.memo || (r.type === 'transfer' ? `${accName(r.account)} → ${accName(r.to)}` : catName(r));
 const everyLabel = r => (Number(r.every) > 1 ? `${r.every}か月ごと` : '毎月');
+const dayLabel = r => (Number(r.day) >= 31 ? '月末' : `${r.day}日`) + (r.due ? 'までに' : '');
 // 「最近の平均で予想」：実際の金額に直して確定した直近3回の平均（10円単位）。まだなければ登録した金額
 function predictAmt(r) {
   if (!r.avg) return r.amount;
@@ -561,8 +565,9 @@ function predictAmt(r) {
 }
 function ruleTx(r, date) {
   const t = { id: `r_${r.id}_${date}`, rid: r.id, type: r.type, amount: predictAmt(r), date, account: r.account, memo: r.memo || '',
-    planned: !(r.auto && date <= state.today), created: 0 };
+    planned: r.due ? true : !(r.auto && date <= state.today), created: 0 };
   if (r.avg) t.est = true;
+  if (r.due) { t.due = true; t.dueDate = date; }
   if (r.type === 'transfer') t.to = r.to; else { t.cat = r.cat; t.category = r.category; }
   return t;
 }
@@ -619,7 +624,7 @@ async function syncRules(exclude = new Set()) {
     for (const t of state.txs) {
       if (!t.rid || !t.planned || t.date > state.today) continue;
       const r = state.rules.find(x => x.id === t.rid);
-      if (r && r.auto) writes.push({ ...t, planned: false });
+      if (r && r.auto && !r.due && !t.due) writes.push({ ...t, planned: false });
     }
     // 平均で予想するくり返しは、まだ直していない予定の金額を最新の平均に合わせる
     for (const t of state.txs) {
@@ -680,13 +685,26 @@ function shortages() {
   return out;
 }
 const ALERT_DAYS = 2; // 支払いの何日前からお知らせを出すか
+const DUE_DAYS = 3;   // 期限の何日前からお知らせを出すか
 function renderAlerts() {
   const all = state.ready ? shortages() : [];
   const addD = n => ymd(new Date(new Date(state.today + 'T00:00:00').getTime() + n * 864e5));
   const tomorrow = addD(1), day2 = addD(2), limit = addD(ALERT_DAYS);
   const list = all.filter(x => x.date <= limit);
   const when = d => d < state.today ? '過ぎた予定' : d === state.today ? '今日' : d === tomorrow ? 'あした' : d === day2 ? 'あさって' : `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
-  $('#alerts').innerHTML = list.map(x => {
+  const dueLimit = addD(DUE_DAYS);
+  const dues = state.ready ? state.txs.filter(t => t.due && t.planned && t.date <= dueLimit).sort((a, b) => (a.date < b.date ? -1 : 1)) : [];
+  const md = d => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
+  const dueHtml = dues.map(t => {
+    const name = t.memo || catName(t);
+    const days = Math.round((new Date(t.date + 'T00:00:00') - new Date(state.today + 'T00:00:00')) / 864e5);
+    const msg = days < 0 ? `「${esc(name)}」${yen(t.amount)}の<b>期限を過ぎています</b>（${md(t.date)}まで）。`
+      : days === 0 ? `<b>今日</b>が「${esc(name)}」${yen(t.amount)}の期限です。`
+      : `「${esc(name)}」${yen(t.amount)}の期限まで<b>あと${days}日</b>（${md(t.date)}まで）。`;
+    return `<div class="alert${days <= 1 ? ' soon' : ''}" role="status"><span class="ai">!</span><span class="am">${msg}
+      <span class="aa"><button type="button" data-paid="${esc(t.id)}">払った</button><button type="button" data-goto="${t.date}">その日を見る</button></span></span></div>`;
+  }).join('');
+  $('#alerts').innerHTML = dueHtml + list.map(x => {
     const name = x.tx.type === 'transfer' ? '移動' : (x.tx.memo || catName(x.tx));
     const soon = x.date <= tomorrow;
     return `<div class="alert${soon ? ' soon' : ''}" role="status"><span class="ai">!</span><span class="am">
@@ -695,7 +713,9 @@ function renderAlerts() {
   }).join('');
   return all;
 }
-$('#alerts').addEventListener('click', e => {
+$('#alerts').addEventListener('click', async e => {
+  const pd = e.target.closest('[data-paid]');
+  if (pd) { const t = findTx(pd.dataset.paid); if (t) await markPaid(t); return; }
   const c = e.target.closest('[data-charge]');
   if (c) {
     const to = c.dataset.charge;
@@ -750,7 +770,7 @@ function render() {
       else mv = true;
     }
     const cls = ['cell'];
-    if (i % 7 === 0 || i % 7 === 6) cls.push('wkend');
+    if (i % 7 === 0) cls.push('sun'); if (i % 7 === 6) cls.push('sat');
     if (key === state.today) cls.push('today');
     if (key === state.sel) cls.push('sel');
     let lines = '';
@@ -758,7 +778,8 @@ function render() {
     if (n) lines += `<div class="amt i num">+${short(n)}</div>`;
     if (po) lines += `<div class="amt p num">-${short(po)}</div>`;
     if (pn) lines += `<div class="amt p num">+${short(pn)}</div>`;
-    const dots = (warnDays.has(key) ? '<span class="warnmark">不足</span>' : '') + (anyPlan && !po && !pn && !warnDays.has(key) ? '<span class="dot p"></span>' : '');
+    const dueHere = list.some(t => t.due && t.planned);
+    const dots = (warnDays.has(key) ? '<span class="warnmark">不足</span>' : dueHere ? '<span class="duemark">〆切</span>' : '') + (anyPlan && !po && !pn && !warnDays.has(key) ? '<span class="dot p"></span>' : '');
     h += `<button type="button" class="${cls.join(' ')}" data-day="${key}" aria-label="${m+1}月${d}日${list.length ? '、' + list.length + '件' : ''}">
       <span class="dnum num">${d}</span>${lines}<span class="dots">${dots}</span></button>`;
   }
@@ -785,10 +806,10 @@ function render() {
       const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '';
       return `<div class="row" role="button" tabindex="0" data-edit="${esc(t.id)}">
         <span class="ico ${t.type}">${icon}</span>
-        <span class="rmain"><span class="rtitle">${title}${t.planned ? '<span class="pill">予定</span>' : ''}${t.rid ? `<span class="pill rep">${t.est ? '目安' : (() => { const r = state.rules.find(x => x.id === t.rid); return r ? everyLabel(r) : 'くり返し'; })()}</span>` : ''}</span>
+        <span class="rmain"><span class="rtitle">${title}${t.planned ? (t.due ? `<span class="pill due">〆切 ${Number(t.date.slice(5, 7))}/${Number(t.date.slice(8))}</span>` : '<span class="pill">予定</span>') : ''}${t.rid ? `<span class="pill rep">${t.est ? '目安' : (() => { const r = state.rules.find(x => x.id === t.rid); return r ? everyLabel(r) : 'くり返し'; })()}</span>` : ''}</span>
           <span class="rsub" style="display:block">${sub}</span></span>
         <span style="text-align:right"><div class="ramt num ${t.type}">${sign}${yen(a)}</div>
-          ${t.planned ? `<button type="button" class="confirm" data-confirm="${esc(t.id)}">確定する</button>` : ''}</span>
+          ${t.planned ? `<button type="button" class="confirm" data-confirm="${esc(t.id)}">${t.due ? '払った' : '確定する'}</button>` : ''}</span>
       </div>`;
     };
     // 収入・支出・移動ごとにまとめて、タップで中身を開く
@@ -1121,7 +1142,7 @@ function paintRep() {
   const r = isOcc ? state.rules.find(x => x.id === ed.rid) : null;
   $('#repInfo').hidden = !isOcc;
   if (isOcc) {
-    $('#repInfoText').textContent = r ? `${everyLabel(r)}${r.day}日のくり返しで作られた記録です${r.avg ? '（金額は平均からの予想）' : ''}` : 'くり返しで作られた記録です（くり返しはもうありません）';
+    $('#repInfoText').textContent = r ? `${everyLabel(r)}${dayLabel(r)}のくり返しで作られた記録です${r.avg ? '（金額は平均からの予想）' : ''}` : 'くり返しで作られた記録です（くり返しはもうありません）';
     $('#repEdit').hidden = !r;
   }
   $('#rowRep').hidden = isRule || isOcc;
@@ -1131,15 +1152,20 @@ function paintRep() {
   $('#fRep').checked = !!ed.rep;
   $('#rowAuto').hidden = !repOn;
   $('#fAuto').checked = ed.auto !== false;
-  $('#rowEvery').hidden = $('#rowAvg').hidden = !repOn;
+  $('#rowEvery').hidden = $('#rowAvg').hidden = $('#rowDue').hidden = !repOn;
+  $('#fDue').checked = !!ed.due;
+  if (repOn && ed.due) $('#rowAuto').hidden = true;
   $('#fEvery').value = String(Number(ed.every) || 1);
   $('#fAvg').checked = !!ed.avg;
   $('#rowPlan').hidden = repOn;
-  $('#dateLabel').textContent = repOn ? 'はじまる日' : '日付';
-  const day = Number(String(ed.date || '').slice(8)) || 1;
+  $('#dateLabel').textContent = repOn ? (ed.due ? '最初の期限の日' : 'はじまる日') : '日付';
+  const dd0 = new Date((ed.date || state.today) + 'T00:00:00');
+  const day = dd0.getDate() === daysIn(dd0.getFullYear(), dd0.getMonth()) ? 31 : (Number(String(ed.date || '').slice(8)) || 1);
   $('#repHint').hidden = !repOn;
   const ev = Number(ed.every) > 1 ? `${ed.every}か月ごとの` : '毎月';
-  $('#repHint').textContent = repOn ? `${ev}${day}日に記録します（その日がない月は月末）。先の月にもずっと予定として表示されます。`
+  $('#repHint').textContent = repOn ? (ed.due
+      ? `${ev}${day >= 31 ? '月末' : day + '日'}までに払う予定として入ります（その日がない月は月末）。払ったら「払った」を押すと、その日の日付で記録されます。期限の${DUE_DAYS}日前からお知らせが出ます。`
+      : `${ev}${day >= 31 ? '月末' : day + '日'}に記録します（その日がない月は月末）。先の月にもずっと予定として表示されます。`)
     + (ed.avg ? '金額は、実際に確定した直近3回の平均で予想します（最初は入れた金額）。' : '') : '';
 }
 function fillSheet() {
@@ -1191,6 +1217,7 @@ $('#fAuto').onchange = e => { ed.auto = e.target.checked; };
 $('#fApply').onchange = e => { ed.applyFuture = e.target.checked; };
 $('#fEvery').onchange = e => { ed.every = Number(e.target.value) || 1; paintRep(); };
 $('#fAvg').onchange = e => { ed.avg = e.target.checked; paintRep(); };
+$('#fDue').onchange = e => { ed.due = e.target.checked; paintRep(); };
 $('#repEdit').onclick = () => { const r = state.rules.find(x => x.id === ed.rid); if (r) openRule(r); };
 $('#fPlan').onchange = e => { planTouched = true; ed.planned = e.target.checked; };
 
@@ -1204,6 +1231,7 @@ $('#txSave').onclick = async () => {
   const t = { id: ed.id || uid(), type: ed.type, amount, date: ed.date, account: ed.account, memo: ed.memo,
     planned: !!ed.planned, created: ed.created || Date.now() };
   if (ed.rid && ed.mode !== 'rule') t.rid = ed.rid;
+  if (ed.due && ed.mode !== 'rule') { t.due = true; t.dueDate = ed.dueDate || ed.origDate || t.date; }
   if (ed.type === 'transfer') t.to = ed.to;
   else {
     const c = state.cats[ed.type].find(x => x.id === ed.cat);
@@ -1241,11 +1269,14 @@ $('#txSave').onclick = async () => {
   }
   if (ed.mode === 'rule' || ed.rep) {
     const isEdit = ed.mode === 'rule';
-    const r = { id: isEdit ? ed.id : uid(), type: t.type, amount: t.amount, day: Number(t.date.slice(8)), start: t.date,
+    // 月の最後の日を選んだら「月末」扱い（30日の月も31日の月も月末になる）
+    const dd = new Date(t.date + 'T00:00:00'), isLast = dd.getDate() === daysIn(dd.getFullYear(), dd.getMonth());
+    const r = { id: isEdit ? ed.id : uid(), type: t.type, amount: t.amount, day: isLast ? 31 : Number(t.date.slice(8)), start: t.date,
       account: t.account, memo: t.memo, auto: ed.auto !== false, skip: isEdit ? (ed.skip || []) : [] };
     if (isEdit && ed.end) r.end = ed.end;
     if (Number(ed.every) > 1) r.every = Number(ed.every);
     if (ed.avg) r.avg = true;
+    if (ed.due) { r.due = true; r.auto = false; }
     if (t.type === 'transfer') r.to = t.to; else { r.cat = t.cat; r.category = t.category; }
     try {
       const exclude = new Set();
@@ -1312,6 +1343,14 @@ $('#delAll').onclick = async () => {
   } catch { $('#txErr').textContent = '削除できませんでした。'; }
 };
 $('#btnAdd').onclick = () => openTx();
+// 確定する／払った（期限つきは、払った日＝今日の日付で記録）
+async function markPaid(t) {
+  const { virtual, ...rest } = t;
+  const upd = { ...rest, planned: false };
+  if (t.due) { upd.dueDate = t.dueDate || t.date; upd.date = state.today; }
+  try { await store.saveTx(upd); toast(t.due ? `払った日（${Number(state.today.slice(5, 7))}/${Number(state.today.slice(8))}）で記録しました` : '確定しました'); }
+  catch { toast('保存できませんでした'); }
+}
 const findTx = id => state.txs.find(x => x.id === id) || monthTxs(state.y, state.m).find(x => x.id === id);
 $('#dayList').addEventListener('click', async e => {
   if (e.target.closest('[data-add]')) { openTx(); return; }
@@ -1321,7 +1360,7 @@ $('#dayList').addEventListener('click', async e => {
   if (c) {
     e.stopPropagation();
     const t = findTx(c.dataset.confirm);
-    if (t) { const { virtual, ...rest } = t; try { await store.saveTx({ ...rest, planned: false }); toast('確定しました'); } catch { toast('保存できませんでした'); } }
+    if (t) await markPaid(t);
     return;
   }
   const r = e.target.closest('[data-edit]');
@@ -1428,7 +1467,7 @@ function paintRules() {
     return `<div class="row" role="button" tabindex="0" data-rule="${esc(r.id)}">
       <span class="ico ${r.type}">${icon}</span>
       <span class="rmain"><span class="rtitle">${esc(ruleName(r))}</span>
-        <span class="rsub" style="display:block">${everyLabel(r)}${r.day}日・${r.avg ? '平均で予想・' : ''}${esc(accName(r.account))}${r.auto ? '・自動で確定' : ''}${r.end ? `・${r.end.slice(0, 4)}/${Number(r.end.slice(5, 7))}/${Number(r.end.slice(8))}まで` : ''}</span></span>
+        <span class="rsub" style="display:block">${everyLabel(r)}${dayLabel(r)}・${r.avg ? '平均で予想・' : ''}${esc(accName(r.account))}${r.auto && !r.due ? '・自動で確定' : ''}${r.end ? `・${r.end.slice(0, 4)}/${Number(r.end.slice(5, 7))}/${Number(r.end.slice(8))}まで` : ''}</span></span>
       <span class="ramt num ${r.type}">${r.avg ? '約' : ''}${sign}${yen(predictAmt(r))}</span></div>`;
   }).join('') : '<div class="empty">まだありません。</div>';
 }
@@ -1493,7 +1532,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261113112545';
+  const APP_VERSION = '20261113113619';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

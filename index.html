@@ -19,7 +19,7 @@
   --bg:#ffffff; --surface:#f2f2f7; --card:#ffffff; --line:#e3e3e8;
   --fg:#111114; --sub:#8a8a92; --today:#ff3b30; --sel:#111114; --selfg:#ffffff;
   --out:#e5484d; --in:#2f9e5b; --move:#3a7bd5; --plan:#b07a12; --planbg:#fff4dc;
-  --accent:#ff3b30; --scrim:rgba(0,0,0,.32); --todayfg:#ffffff;
+  --accent:#ff3b30; --scrim:rgba(0,0,0,.32); --todayfg:#ffffff; --hl:#ffe1dd; --hlfg:#3a0d09;
   --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --sx:#b4b4ba;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;
 }
@@ -27,13 +27,13 @@
   --bg:#000000; --surface:#1c1c1e; --card:#1c1c1e; --line:#2c2c2e;
   --fg:#f5f5f7; --sub:#8e8e93; --today:#ff453a; --sel:#f5f5f7; --selfg:#000000;
   --out:#ff6b6b; --in:#4cc47c; --move:#6aa2ff; --plan:#e0a93a; --planbg:#3a2c0f;
-  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark;
+  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark; --hl:#4a1a17; --hlfg:#ffe1dd;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --sx:#5a5a60 }}
 :root[data-theme="dark"]{
   --bg:#000000; --surface:#1c1c1e; --card:#1c1c1e; --line:#2c2c2e;
   --fg:#f5f5f7; --sub:#8e8e93; --today:#ff453a; --sel:#f5f5f7; --selfg:#000000;
   --out:#ff6b6b; --in:#4cc47c; --move:#6aa2ff; --plan:#e0a93a; --planbg:#3a2c0f;
-  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark;
+  --accent:#ff453a; --scrim:rgba(0,0,0,.55); color-scheme:dark; --hl:#4a1a17; --hlfg:#ffe1dd;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --sx:#5a5a60 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;-webkit-tap-highlight-color:transparent}
@@ -105,10 +105,10 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .bal .bv{text-align:right}
 .bal .bv div:first-child{font-weight:600;font-size:16px}
 .bal .bv div:last-child{font-size:11.5px;color:var(--plan)}
-.bal.total{background:var(--fg);color:var(--bg);padding-block:14px}
+.bal.total{background:var(--hl);color:var(--hlfg);padding-block:14px}
 .bal.total .bn{font-size:15px}
 .bal.total .bv div:first-child{font-size:20px;font-weight:700}
-.bal.total .bv div:last-child{color:var(--bg);opacity:.75}
+.bal.total .bv div:last-child{color:var(--hlfg);opacity:.75}
 .bal.total + .bal{border-top:0}
 .note{font-size:12px;color:var(--sub);text-align:center;padding-block:18px 28px;line-height:1.6}
 
@@ -190,17 +190,23 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .brk .bname{display:flex;align-items:center;gap:8px}
 .hint{font-size:12px;color:var(--sub);margin:-6px 4px 14px;line-height:1.5}
 /* theme colors (chosen in settings) */
-:root[data-color="yellow"]{--bg:#fffdf4;--surface:#fff4cc;--card:#fffdf4;--line:#f0e3b2;--today:#f5b700;--todayfg:#2a2100;--accent:#9c6b00;--plan:#7c5cd6;--planbg:#eee9ff}
-@media (prefers-color-scheme: dark){:root[data-color="yellow"]:not([data-theme="light"]){--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445}}
-:root[data-color="yellow"][data-theme="dark"]{--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445}
-:root[data-color="pink"]{--bg:#fffafb;--surface:#fdebf0;--card:#fffafb;--line:#f3d5de;--today:#e8578a;--todayfg:#ffffff;--accent:#d23f74;--plan:#b07a12;--planbg:#fff4dc}
-@media (prefers-color-scheme: dark){:root[data-color="pink"]:not([data-theme="light"]){--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f}}
-:root[data-color="pink"][data-theme="dark"]{--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f}
-:root[data-color="blue"]{--bg:#fbfdff;--surface:#eaf2fc;--card:#fbfdff;--line:#d3e2f4;--today:#2a78d6;--todayfg:#ffffff;--accent:#1f6cc7;--plan:#b07a12;--planbg:#fff4dc}
-@media (prefers-color-scheme: dark){:root[data-color="blue"]:not([data-theme="light"]){--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f}}
-:root[data-color="blue"][data-theme="dark"]{--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f}
-.themes{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
-.themes button{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;color:var(--sub);padding:4px 2px;min-width:56px}
+:root[data-color="yellow"]{--bg:#fffdf4;--surface:#fff4cc;--card:#fffdf4;--line:#f0e3b2;--today:#f5b700;--todayfg:#2a2100;--accent:#9c6b00;--plan:#7c5cd6;--planbg:#eee9ff;--hl:#ffd84d;--hlfg:#2a2100}
+@media (prefers-color-scheme: dark){:root[data-color="yellow"]:not([data-theme="light"]){--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445;--hl:#ffc933;--hlfg:#2a2100}}
+:root[data-color="yellow"][data-theme="dark"]{--bg:#0f0d05;--surface:#262010;--card:#262010;--line:#3a3218;--today:#ffc933;--todayfg:#2a2100;--accent:#ffcc33;--plan:#a993ff;--planbg:#2b2445;--hl:#ffc933;--hlfg:#2a2100}
+:root[data-color="pink"]{--bg:#fffafb;--surface:#fdebf0;--card:#fffafb;--line:#f3d5de;--today:#e8578a;--todayfg:#ffffff;--accent:#d23f74;--plan:#b07a12;--planbg:#fff4dc;--hl:#ffcfdf;--hlfg:#45102a}
+@media (prefers-color-scheme: dark){:root[data-color="pink"]:not([data-theme="light"]){--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#5a2238;--hlfg:#ffe0ea}}
+:root[data-color="pink"][data-theme="dark"]{--bg:#0d0709;--surface:#24161b;--card:#24161b;--line:#3a2329;--today:#ff7aa8;--todayfg:#ffffff;--accent:#ff7aa8;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#5a2238;--hlfg:#ffe0ea}
+:root[data-color="blue"]{--bg:#fbfdff;--surface:#eaf2fc;--card:#fbfdff;--line:#d3e2f4;--today:#2a78d6;--todayfg:#ffffff;--accent:#1f6cc7;--plan:#b07a12;--planbg:#fff4dc;--hl:#cfe2fb;--hlfg:#0b2240}
+@media (prefers-color-scheme: dark){:root[data-color="blue"]:not([data-theme="light"]){--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#183456;--hlfg:#dcebff}}
+:root[data-color="blue"][data-theme="dark"]{--bg:#05080d;--surface:#141c27;--card:#141c27;--line:#223040;--today:#4a95ee;--todayfg:#ffffff;--accent:#5aa2f5;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#183456;--hlfg:#dcebff}
+:root[data-color="green"]{--bg:#f8fcf8;--surface:#e6f4e6;--card:#f8fcf8;--line:#cfe6cf;--today:#2e9a4f;--todayfg:#ffffff;--accent:#237a3d;--plan:#b07a12;--planbg:#fff4dc;--hl:#b9e4c2;--hlfg:#0d2e17}
+@media (prefers-color-scheme: dark){:root[data-color="green"]:not([data-theme="light"]){--bg:#050a06;--surface:#132016;--card:#132016;--line:#213426;--today:#4cc47c;--todayfg:#04210f;--accent:#5fd08b;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#2c6b3f;--hlfg:#e1f7e8}}
+:root[data-color="green"][data-theme="dark"]{--bg:#050a06;--surface:#132016;--card:#132016;--line:#213426;--today:#4cc47c;--todayfg:#04210f;--accent:#5fd08b;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#2c6b3f;--hlfg:#e1f7e8}
+:root[data-color="brown"]{--bg:#fdf9f4;--surface:#f3e8db;--card:#fdf9f4;--line:#e6d5c1;--today:#8b5a2b;--todayfg:#ffffff;--accent:#8b5a2b;--plan:#b07a12;--planbg:#fff4dc;--hl:#e2c4a0;--hlfg:#3a2410}
+@media (prefers-color-scheme: dark){:root[data-color="brown"]:not([data-theme="light"]){--bg:#0d0a07;--surface:#221a12;--card:#221a12;--line:#362a1e;--today:#c8955f;--todayfg:#1e1208;--accent:#d4a373;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#c8955f;--hlfg:#1e1208}}
+:root[data-color="brown"][data-theme="dark"]{--bg:#0d0a07;--surface:#221a12;--card:#221a12;--line:#362a1e;--today:#c8955f;--todayfg:#1e1208;--accent:#d4a373;--plan:#e0a93a;--planbg:#3a2c0f;--hl:#c8955f;--hlfg:#1e1208}
+.themes{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-bottom:6px}
+.themes button{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12px;color:var(--sub);padding:4px 0;min-width:0}
 .themes i{width:40px;height:40px;border-radius:50%;border:3px solid transparent;box-shadow:inset 0 0 0 2px var(--bg)}
 .themes button[aria-pressed="true"] i{border-color:var(--fg)}
 .themes button[aria-pressed="true"]{color:var(--fg);font-weight:600}
@@ -364,7 +370,7 @@ const state = {
 const catName = t => (state.cats[t.type] || []).find(c => c.id === t.cat)?.name || t.category || 'その他';
 
 /* ---------- appearance: theme color (kept on this device) ---------- */
-const COLORS = [['red', 'いちご', '#ff3b30'], ['yellow', 'レモン', '#f5b700'], ['pink', 'さくら', '#e8578a'], ['blue', 'そら', '#2a78d6']];
+const COLORS = [['red', '赤', '#ff3b30'], ['yellow', '黄色', '#f5b700'], ['pink', 'ピンク', '#e8578a'], ['blue', '青', '#2a78d6'], ['green', '緑', '#2e9a4f'], ['brown', '茶色', '#8b5a2b']];
 let colorKey = (() => { try { return localStorage.getItem('osaifu.color') || 'red'; } catch { return 'red'; } })();
 function applyColor() {
   if (colorKey === 'red') delete document.documentElement.dataset.color;

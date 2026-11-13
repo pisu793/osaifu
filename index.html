@@ -202,6 +202,13 @@ input,select,textarea{font-size:16px}
 .alert .aa button{color:var(--warnfg);font-weight:700;font-size:13px;text-decoration:underline;text-underline-offset:3px}
 .alert.soon{outline:2px solid var(--warn)}
 .cell .warnmark{font-size:9px;font-weight:800;color:var(--warn);line-height:1}
+/* day list groups */
+.row.grp .chev{flex:none;color:var(--sub);font-size:20px;transition:transform .15s;margin-left:2px}
+.row.grp.open .chev{transform:rotate(90deg)}
+.grpbody{background:var(--bg);border-top:1px solid var(--line)}
+.grpbody .row{padding-left:26px}
+.grpbody .row .ico{width:26px;height:26px;font-size:12px;border-radius:7px}
+@media (prefers-reduced-motion:reduce){.row.grp .chev{transition:none}}
 /* budget */
 .bud{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:11px 14px;border-top:1px solid var(--line);align-items:baseline}
 .bud:first-child{border-top:0}
@@ -280,7 +287,6 @@ input,select,textarea{font-size:16px}
         <button type="button" id="next" aria-label="次の月">›</button>
       </div>
     </div>
-    <div class="dow"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
   </div>
 </header>
 
@@ -292,6 +298,7 @@ input,select,textarea{font-size:16px}
     <div class="sum"><b>収支</b><span class="num" id="sNet">¥0</span></div>
   </div>
   <div class="planline num" id="planLine"></div>
+  <div class="dow" aria-hidden="true"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
   <div class="grid" id="grid"></div>
 
   <section class="section">
@@ -358,6 +365,9 @@ input,select,textarea{font-size:16px}
       <div class="f" id="rowPlan"><label for="fPlan">予定（まだ確定していない）</label><span class="switch"><input type="checkbox" id="fPlan" role="switch"><i></i></span></div>
       <div class="f" id="rowRep"><label for="fRep">毎月くり返す（サブスク・給料など）</label><span class="switch"><input type="checkbox" id="fRep" role="switch"><i></i></span></div>
       <div class="f" id="rowApply" hidden><label for="fApply">これ以降の月にも反映</label><span class="switch"><input type="checkbox" id="fApply" role="switch"><i></i></span></div>
+      <div class="f" id="rowEvery" hidden><label for="fEvery">くり返す間かく</label><select id="fEvery">
+        <option value="1">毎月</option><option value="2">2か月ごと</option><option value="3">3か月ごと</option><option value="6">6か月ごと</option><option value="12">1年ごと</option></select></div>
+      <div class="f" id="rowAvg" hidden><label for="fAvg">金額は最近3回の平均で予想</label><span class="switch"><input type="checkbox" id="fAvg" role="switch"><i></i></span></div>
       <div class="f" id="rowAuto" hidden><label for="fAuto">日付が来たら自動で確定</label><span class="switch"><input type="checkbox" id="fAuto" role="switch"><i></i></span></div>
     </div>
     <p class="hint" id="repHint" hidden></p>
@@ -441,7 +451,7 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const now = new Date();
 const state = {
   today: ymd(now), y: now.getFullYear(), m: now.getMonth(), sel: ymd(now),
-  txs: [], accounts: DEFAULT_ACCOUNTS.slice(), cats: cloneCats(DEFAULT_CATS), budget: 0, budgetMode: 'amount', saveGoal: 0, rules: [], ready: false,
+  txs: [], accounts: DEFAULT_ACCOUNTS.slice(), cats: cloneCats(DEFAULT_CATS), budget: 0, budgetMode: 'amount', saveGoal: 0, rules: [], openGroups: new Set(), ready: false,
   ana: (() => { try { return localStorage.getItem('osaifu.ana') || 'month'; } catch { return 'month'; } })(), anaFocus: null
 };
 const catName = t => (state.cats[t.type] || []).find(c => c.id === t.cat)?.name || t.category || 'その他';
@@ -541,9 +551,18 @@ async function init() {
 /* ---------- monthly repeats (subscriptions etc.) ---------- */
 const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
 const ruleName = r => r.memo || (r.type === 'transfer' ? `${accName(r.account)} → ${accName(r.to)}` : catName(r));
+const everyLabel = r => (Number(r.every) > 1 ? `${r.every}か月ごと` : '毎月');
+// 「最近の平均で予想」：実際の金額に直して確定した直近3回の平均（10円単位）。まだなければ登録した金額
+function predictAmt(r) {
+  if (!r.avg) return r.amount;
+  const hist = state.txs.filter(t => t.rid === r.id && !t.planned && !t.est).sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 3);
+  if (!hist.length) return r.amount;
+  return Math.round(hist.reduce((s, t) => s + (Number(t.amount) || 0), 0) / hist.length / 10) * 10;
+}
 function ruleTx(r, date) {
-  const t = { id: `r_${r.id}_${date}`, rid: r.id, type: r.type, amount: r.amount, date, account: r.account, memo: r.memo || '',
+  const t = { id: `r_${r.id}_${date}`, rid: r.id, type: r.type, amount: predictAmt(r), date, account: r.account, memo: r.memo || '',
     planned: !(r.auto && date <= state.today), created: 0 };
+  if (r.avg) t.est = true;
   if (r.type === 'transfer') t.to = r.to; else { t.cat = r.cat; t.category = r.category; }
   return t;
 }
@@ -552,15 +571,16 @@ const horizonStr = () => ymd(new Date(now.getFullYear(), now.getMonth() + 2, 0))
 function ruleDates(r, from, to) {
   const out = [];
   if (!r.start || !r.day) return out;
+  const every = Math.max(1, Number(r.every) || 1);
   const st = new Date(r.start + 'T00:00:00');
   const f = new Date(from + 'T00:00:00');
-  let y = st.getFullYear(), m = st.getMonth();
-  if (f > st) { y = f.getFullYear(); m = f.getMonth(); }
-  for (let guard = 0; guard < 600; guard++) {
+  let k = 0;
+  if (f > st) k = Math.max(0, Math.floor(((f.getFullYear() - st.getFullYear()) * 12 + f.getMonth() - st.getMonth()) / every) * every);
+  for (let guard = 0; guard < 600; guard++, k += every) {
+    const y = st.getFullYear() + Math.floor((st.getMonth() + k) / 12), m = (st.getMonth() + k) % 12;
     const d = ymd(new Date(y, m, Math.min(r.day, daysIn(y, m))));
     if (d > to || (r.end && d > r.end)) break;
     if (d >= r.start && d >= from && !(r.skip || []).includes(d)) out.push(d);
-    if (++m > 11) { m = 0; y++; }
   }
   return out;
 }
@@ -600,6 +620,12 @@ async function syncRules(exclude = new Set()) {
       if (!t.rid || !t.planned || t.date > state.today) continue;
       const r = state.rules.find(x => x.id === t.rid);
       if (r && r.auto) writes.push({ ...t, planned: false });
+    }
+    // 平均で予想するくり返しは、まだ直していない予定の金額を最新の平均に合わせる
+    for (const t of state.txs) {
+      if (!t.rid || !t.planned || !t.est || exclude.has(t.id)) continue;
+      const r = state.rules.find(x => x.id === t.rid);
+      if (r && r.avg) { const a = predictAmt(r); if (a !== t.amount) writes.push({ ...t, amount: a }); }
     }
     for (const t of writes) await store.saveTx(t);
   } catch {}
@@ -750,7 +776,7 @@ function render() {
   } else if (!dl.length) {
     $('#dayList').innerHTML = `<div class="empty">この日の記録はまだありません。<br><button type="button" data-add>＋ 記録を追加</button></div>`;
   } else {
-    $('#dayList').innerHTML = dl.map(t => {
+    const rowHtml = t => {
       const a = Number(t.amount) || 0;
       const isT = t.type === 'transfer';
       const title = isT ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : esc(catName(t));
@@ -759,11 +785,27 @@ function render() {
       const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '';
       return `<div class="row" role="button" tabindex="0" data-edit="${esc(t.id)}">
         <span class="ico ${t.type}">${icon}</span>
-        <span class="rmain"><span class="rtitle">${title}${t.planned ? '<span class="pill">予定</span>' : ''}${t.rid ? '<span class="pill rep">毎月</span>' : ''}</span>
+        <span class="rmain"><span class="rtitle">${title}${t.planned ? '<span class="pill">予定</span>' : ''}${t.rid ? `<span class="pill rep">${t.est ? '目安' : (() => { const r = state.rules.find(x => x.id === t.rid); return r ? everyLabel(r) : 'くり返し'; })()}</span>` : ''}</span>
           <span class="rsub" style="display:block">${sub}</span></span>
         <span style="text-align:right"><div class="ramt num ${t.type}">${sign}${yen(a)}</div>
           ${t.planned ? `<button type="button" class="confirm" data-confirm="${esc(t.id)}">確定する</button>` : ''}</span>
       </div>`;
+    };
+    // 収入・支出・移動ごとにまとめて、タップで中身を開く
+    const groups = [['income', '収入', '+'], ['expense', '支出', '−'], ['transfer', '移動', '⇄']];
+    $('#dayList').innerHTML = groups.map(([type, label, icon]) => {
+      const items = dl.filter(t => t.type === type);
+      if (!items.length) return '';
+      const open = state.openGroups.has(type);
+      const sum = items.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+      const nPlan = items.filter(t => t.planned).length;
+      const amt = type === 'transfer' ? '' : `<div class="ramt num ${type}">${type === 'expense' ? '-' : '+'}${yen(sum)}</div>`;
+      return `<div class="row grp${open ? ' open' : ''}" role="button" tabindex="0" aria-expanded="${open}" data-group="${type}">
+        <span class="ico ${type}">${icon}</span>
+        <span class="rmain"><span class="rtitle">${label}${nPlan ? `<span class="pill">予定${nPlan}件</span>` : ''}</span>
+          <span class="rsub" style="display:block">${items.length}件</span></span>
+        <span style="text-align:right">${amt}</span><span class="chev" aria-hidden="true">›</span>
+      </div>${open ? `<div class="grpbody">${items.map(rowHtml).join('')}</div>` : ''}`;
     }).join('');
   }
 
@@ -1079,7 +1121,7 @@ function paintRep() {
   const r = isOcc ? state.rules.find(x => x.id === ed.rid) : null;
   $('#repInfo').hidden = !isOcc;
   if (isOcc) {
-    $('#repInfoText').textContent = r ? `毎月${r.day}日のくり返しで作られた記録です` : 'くり返しで作られた記録です（くり返しはもうありません）';
+    $('#repInfoText').textContent = r ? `${everyLabel(r)}${r.day}日のくり返しで作られた記録です${r.avg ? '（金額は平均からの予想）' : ''}` : 'くり返しで作られた記録です（くり返しはもうありません）';
     $('#repEdit').hidden = !r;
   }
   $('#rowRep').hidden = isRule || isOcc;
@@ -1089,11 +1131,16 @@ function paintRep() {
   $('#fRep').checked = !!ed.rep;
   $('#rowAuto').hidden = !repOn;
   $('#fAuto').checked = ed.auto !== false;
+  $('#rowEvery').hidden = $('#rowAvg').hidden = !repOn;
+  $('#fEvery').value = String(Number(ed.every) || 1);
+  $('#fAvg').checked = !!ed.avg;
   $('#rowPlan').hidden = repOn;
   $('#dateLabel').textContent = repOn ? 'はじまる日' : '日付';
   const day = Number(String(ed.date || '').slice(8)) || 1;
   $('#repHint').hidden = !repOn;
-  $('#repHint').textContent = repOn ? `毎月${day}日に記録します（その日がない月は月末）。先の月にもずっと予定として表示されます。` : '';
+  const ev = Number(ed.every) > 1 ? `${ed.every}か月ごとの` : '毎月';
+  $('#repHint').textContent = repOn ? `${ev}${day}日に記録します（その日がない月は月末）。先の月にもずっと予定として表示されます。`
+    + (ed.avg ? '金額は、実際に確定した直近3回の平均で予想します（最初は入れた金額）。' : '') : '';
 }
 function fillSheet() {
   $('#fAmt').value = ed.amount ? Number(ed.amount).toLocaleString('ja-JP') : '';
@@ -1114,7 +1161,7 @@ function openRule(r) {
 }
 function openTx(t, prefill) {
   delArmed = false; planTouched = !!t || !!prefill;
-  ed = t ? { ...t, mode: 'tx', rep: false, auto: true, applyFuture: true, origDate: t.date } : { id: null, mode: 'tx', rep: false, auto: true, type: 'expense', amount: '', date: state.sel, cat: state.cats.expense[0]?.id,
+  ed = t ? { ...t, mode: 'tx', rep: false, auto: true, applyFuture: !(t.rid && state.rules.find(x => x.id === t.rid)?.avg), origDate: t.date } : { id: null, mode: 'tx', rep: false, auto: true, type: 'expense', amount: '', date: state.sel, cat: state.cats.expense[0]?.id,
     account: state.accounts[0]?.id, to: null, memo: '', planned: state.sel > state.today, ...(prefill || {}) };
   if (t && t.type !== 'transfer' && !(state.cats[t.type] || []).some(c => c.id === t.cat))
     ed.cat = (state.cats[t.type] || []).find(c => c.name === t.category)?.id;
@@ -1142,6 +1189,8 @@ $('#fDate').onchange = e => { ed.date = e.target.value; if (!planTouched) { ed.p
 $('#fRep').onchange = e => { ed.rep = e.target.checked; paintRep(); };
 $('#fAuto').onchange = e => { ed.auto = e.target.checked; };
 $('#fApply').onchange = e => { ed.applyFuture = e.target.checked; };
+$('#fEvery').onchange = e => { ed.every = Number(e.target.value) || 1; paintRep(); };
+$('#fAvg').onchange = e => { ed.avg = e.target.checked; paintRep(); };
 $('#repEdit').onclick = () => { const r = state.rules.find(x => x.id === ed.rid); if (r) openRule(r); };
 $('#fPlan').onchange = e => { planTouched = true; ed.planned = e.target.checked; };
 
@@ -1195,6 +1244,8 @@ $('#txSave').onclick = async () => {
     const r = { id: isEdit ? ed.id : uid(), type: t.type, amount: t.amount, day: Number(t.date.slice(8)), start: t.date,
       account: t.account, memo: t.memo, auto: ed.auto !== false, skip: isEdit ? (ed.skip || []) : [] };
     if (isEdit && ed.end) r.end = ed.end;
+    if (Number(ed.every) > 1) r.every = Number(ed.every);
+    if (ed.avg) r.avg = true;
     if (t.type === 'transfer') r.to = t.to; else { r.cat = t.cat; r.category = t.category; }
     try {
       const exclude = new Set();
@@ -1264,6 +1315,8 @@ $('#btnAdd').onclick = () => openTx();
 const findTx = id => state.txs.find(x => x.id === id) || monthTxs(state.y, state.m).find(x => x.id === id);
 $('#dayList').addEventListener('click', async e => {
   if (e.target.closest('[data-add]')) { openTx(); return; }
+  const g = e.target.closest('[data-group]');
+  if (g) { const k = g.dataset.group; state.openGroups.has(k) ? state.openGroups.delete(k) : state.openGroups.add(k); render(); return; }
   const c = e.target.closest('[data-confirm]');
   if (c) {
     e.stopPropagation();
@@ -1275,7 +1328,7 @@ $('#dayList').addEventListener('click', async e => {
   if (r) { const t = findTx(r.dataset.edit); if (t) openTx(t); }
 });
 $('#dayList').addEventListener('keydown', e => {
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-edit]')) { e.preventDefault(); e.target.click(); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-edit],[data-group]')) { e.preventDefault(); e.target.click(); }
 });
 
 /* settings: accounts + categories */
@@ -1375,8 +1428,8 @@ function paintRules() {
     return `<div class="row" role="button" tabindex="0" data-rule="${esc(r.id)}">
       <span class="ico ${r.type}">${icon}</span>
       <span class="rmain"><span class="rtitle">${esc(ruleName(r))}</span>
-        <span class="rsub" style="display:block">毎月${r.day}日・${esc(accName(r.account))}${r.auto ? '・自動で確定' : ''}${r.end ? `・${r.end.slice(0, 4)}/${Number(r.end.slice(5, 7))}/${Number(r.end.slice(8))}まで` : ''}</span></span>
-      <span class="ramt num ${r.type}">${sign}${yen(r.amount)}</span></div>`;
+        <span class="rsub" style="display:block">${everyLabel(r)}${r.day}日・${r.avg ? '平均で予想・' : ''}${esc(accName(r.account))}${r.auto ? '・自動で確定' : ''}${r.end ? `・${r.end.slice(0, 4)}/${Number(r.end.slice(5, 7))}/${Number(r.end.slice(8))}まで` : ''}</span></span>
+      <span class="ramt num ${r.type}">${r.avg ? '約' : ''}${sign}${yen(predictAmt(r))}</span></div>`;
   }).join('') : '<div class="empty">まだありません。</div>';
 }
 $('#ruleList').addEventListener('click', e => {
@@ -1440,7 +1493,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261113105655';
+  const APP_VERSION = '20261113112545';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

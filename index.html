@@ -630,7 +630,7 @@ async function syncRules(exclude = new Set()) {
     for (const t of state.txs) {
       if (!t.rid || !t.planned || t.date > state.today) continue;
       const r = state.rules.find(x => x.id === t.rid);
-      if (r && r.auto && !r.due && !t.due) writes.push({ ...t, planned: false });
+      if (r && r.auto && !r.due && !t.due && !t.noAuto) writes.push({ ...t, planned: false, wasPlanned: true });
     }
     // 平均で予想するくり返しは、まだ直していない予定の金額を最新の平均に合わせる
     for (const t of state.txs) {
@@ -1233,8 +1233,8 @@ function openTx(t, prefill) {
   $('#txErr').textContent = '';
   $('#txDel').hidden = !t || !!t.rid; $('#txDel').textContent = 'この記録を削除';
   $('#occDel').hidden = $('#occDelHint').hidden = !(t && t.rid);
-  $('#undoPaid').hidden = !(t && t.due && !t.planned);
-  if (t && t.due) $('#undoPaid').textContent = `「${paidWord(t)}」を取り消して予定に戻す`;
+  $('#undoPaid').hidden = !(t && !t.planned && (t.due || t.rid || t.wasPlanned));
+  if (t) $('#undoPaid').textContent = t.due ? `「${paidWord(t)}」を取り消して予定に戻す` : '「確定」を取り消して予定に戻す';
   $('#delOne').textContent = 'この月だけ削除'; $('#delAll').textContent = 'これ以降すべて削除'; armOne = armAll = false;
   paintForm();
   show($('#txSheet'));
@@ -1364,7 +1364,8 @@ $('#txDel').onclick = async () => {
 $('#undoPaid').onclick = async () => {
   const t = state.txs.find(x => x.id === ed.id); if (!t) return;
   try {
-    await store.saveTx({ ...t, planned: true, date: t.dueDate || t.date });
+    // 自動で確定されるくり返しも、取り消したものは自動で確定し直さない
+    await store.saveTx({ ...t, planned: true, date: t.due ? (t.dueDate || t.date) : t.date, noAuto: true });
     hide(); render(); toast('予定に戻しました');
   } catch { $('#txErr').textContent = '戻せませんでした。'; }
 };
@@ -1397,7 +1398,8 @@ $('#btnAdd').onclick = () => openTx();
 // 確定する／払った（期限つきは、払った日＝今日の日付で記録）
 async function markPaid(t) {
   const { virtual, ...rest } = t;
-  const upd = { ...rest, planned: false };
+  const upd = { ...rest, planned: false, wasPlanned: true };
+  delete upd.noAuto;
   if (t.due) { upd.dueDate = t.dueDate || t.date; upd.date = state.today; }
   try { await store.saveTx(upd); toast(t.due ? `${paidWord(t)}日（${md(state.today)}）で記録しました` : '確定しました'); }
   catch { toast('保存できませんでした'); }
@@ -1583,7 +1585,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261113130744';
+  const APP_VERSION = '20261114003339';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

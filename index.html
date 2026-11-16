@@ -204,6 +204,17 @@ input,select,textarea{font-size:16px}
 .cell .warnmark{font-size:9px;font-weight:800;color:var(--warn);line-height:1}
 .pill.due{background:var(--warnbg);color:var(--warnfg)}
 .cell .duemark{font-size:9px;font-weight:800;color:var(--accent);line-height:1}
+/* presets */
+.presets{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;margin:0 -2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.presets::-webkit-scrollbar{display:none}
+.pchip{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);max-width:180px;text-align:left}
+.pchip b{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:156px}
+.pchip span{font-size:12px;color:var(--sub)}
+.pchip.on{border-color:var(--accent);background:var(--hl);color:var(--hlfg)}
+.pchip.on span{color:var(--hlfg)}
+.presetSave{display:block;width:100%;padding:10px;color:var(--accent);font-weight:600;font-size:14px;text-align:center}
+.accrow.pre{grid-template-columns:30px 1fr auto 32px}
+.accrow.pre .pamt{font-size:13px;color:var(--sub);white-space:nowrap}
 /* day list groups */
 .row.grp .chev{flex:none;color:var(--sub);font-size:20px;transition:transform .15s;margin-left:2px}
 .row.grp.open .chev{transform:rotate(90deg)}
@@ -351,6 +362,7 @@ input,select,textarea{font-size:16px}
       <h3 id="txHead">記録を追加</h3>
       <button type="button" class="save" id="txSave">保存</button>
     </div>
+    <div class="presets" id="presetBar" hidden role="group" aria-label="よく使う入力"></div>
     <div class="seg" role="group" aria-label="種類">
       <button type="button" data-type="expense">支出</button>
       <button type="button" data-type="income">収入</button>
@@ -375,6 +387,7 @@ input,select,textarea{font-size:16px}
     </div>
     <p class="hint" id="repHint" hidden></p>
     <p class="hint" id="moveHint" hidden>移動は収入にも支出にもカウントされません。口座の残高だけが動きます（例：現金 → 電子マネーにチャージ）。</p>
+    <button type="button" class="presetSave" id="presetSave" hidden>☆ この内容をよく使う入力に登録</button>
     <p class="err" id="txErr"></p>
     <button type="button" class="danger" id="undoPaid" hidden style="color:var(--accent);margin-bottom:8px">「払った」を取り消して予定に戻す</button>
     <button type="button" class="danger" id="txDel" hidden>この記録を削除</button>
@@ -416,6 +429,9 @@ input,select,textarea{font-size:16px}
     <p class="lbl sublbl">収入のジャンル</p>
     <div class="form" id="catListI"></div>
     <p class="hint">ジャンルを消しても、これまでの記録はそのままの名前で残ります。</p>
+    <p class="lbl sublbl" id="secPresets">よく使う入力</p>
+    <div class="form" id="presetList"></div>
+    <p class="hint">「＋」の入力画面で金額やメモを入れて「☆ この内容をよく使う入力に登録」を押すと、ここに追加されます。入力画面の一番上に並び、タップすると中身が入ります。</p>
     <p class="lbl sublbl" id="secRules">毎月のくり返し（サブスク・給料など）</p>
     <div class="list rulelist" id="ruleList"></div>
     <p class="hint">「＋」で記録するときに「毎月くり返す」をオンにすると、ここに追加されます。タップすると金額や日にちを変えられます。</p>
@@ -455,7 +471,7 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const now = new Date();
 const state = {
   today: ymd(now), y: now.getFullYear(), m: now.getMonth(), sel: ymd(now),
-  txs: [], accounts: DEFAULT_ACCOUNTS.slice(), cats: cloneCats(DEFAULT_CATS), budget: 0, budgetMode: 'amount', saveGoal: 0, rules: [], openGroups: new Set(), ready: false,
+  txs: [], accounts: DEFAULT_ACCOUNTS.slice(), cats: cloneCats(DEFAULT_CATS), budget: 0, budgetMode: 'amount', saveGoal: 0, rules: [], presets: [], openGroups: new Set(), ready: false,
   ana: (() => { try { return localStorage.getItem('osaifu.ana') || 'month'; } catch { return 'month'; } })(), anaFocus: null
 };
 const catName = t => (state.cats[t.type] || []).find(c => c.id === t.cat)?.name || t.category || 'その他';
@@ -492,12 +508,12 @@ const store = {
   },
   async saveBook(patch) {
     const book = { accounts: state.accounts, cats: state.cats, budget: state.budget || 0, budgetMode: state.budgetMode || 'amount',
-      saveGoal: state.saveGoal || 0, rules: state.rules, ...patch };
+      saveGoal: state.saveGoal || 0, rules: state.rules, presets: state.presets || [], ...patch };
     if (this.kind === 'db') await this.book.set(book);
     else { lsSet(LS_ACC, book.accounts); lsSet(LS_CAT, book.cats); lsSet('osaifu.budget', book.budget); lsSet('osaifu.rules', book.rules);
-      lsSet('osaifu.budgetMode', book.budgetMode); lsSet('osaifu.saveGoal', book.saveGoal); }
+      lsSet('osaifu.budgetMode', book.budgetMode); lsSet('osaifu.saveGoal', book.saveGoal); lsSet('osaifu.presets', book.presets); }
     state.accounts = book.accounts; state.cats = book.cats; state.budget = book.budget; state.rules = book.rules;
-    state.budgetMode = book.budgetMode; state.saveGoal = book.saveGoal;
+    state.budgetMode = book.budgetMode; state.saveGoal = book.saveGoal; state.presets = book.presets;
     render();
   }
 };
@@ -512,6 +528,7 @@ function useLocal(msg) {
   state.budgetMode = lsGet('osaifu.budgetMode', 'amount') === 'save' ? 'save' : 'amount';
   state.saveGoal = Number(lsGet('osaifu.saveGoal', 0)) || 0;
   state.rules = lsGet('osaifu.rules', []);
+  state.presets = lsGet('osaifu.presets', []);
   state.ready = true;
   $('#note').textContent = msg;
   render();
@@ -546,7 +563,8 @@ async function init() {
     if (d && Array.isArray(d.accounts) && d.accounts.length) state.accounts = d.accounts.slice();
     if (d && d.cats && Array.isArray(d.cats.expense) && Array.isArray(d.cats.income)) state.cats = cloneCats(d.cats);
     if (d) { state.budget = Number(d.budget) || 0; state.rules = Array.isArray(d.rules) ? d.rules : [];
-      state.budgetMode = d.budgetMode === 'save' ? 'save' : 'amount'; state.saveGoal = Number(d.saveGoal) || 0; }
+      state.budgetMode = d.budgetMode === 'save' ? 'save' : 'amount'; state.saveGoal = Number(d.saveGoal) || 0;
+      state.presets = Array.isArray(d.presets) ? d.presets : []; }
     if (!s.metadata.fromCache) { gotBook = true; trySync(); }
     render();
   }, () => {});
@@ -1214,6 +1232,7 @@ function openRule(r) {
   planTouched = true;
   ed = { ...r, mode: 'rule', date: r.start, planned: false, rep: true };
   $('#txHead').textContent = '毎月のくり返し';
+  $('#presetBar').hidden = $('#presetSave').hidden = true;
   $('#txDel').hidden = false; $('#txDel').textContent = 'くり返しをやめる';
   $('#occDel').hidden = $('#occDelHint').hidden = true;
   $('#undoPaid').hidden = true;
@@ -1227,6 +1246,7 @@ function openTx(t, prefill) {
   if (t && t.type !== 'transfer' && !(state.cats[t.type] || []).some(c => c.id === t.cat))
     ed.cat = (state.cats[t.type] || []).find(c => c.name === t.category)?.id;
   $('#txHead').textContent = t ? '記録を編集' : '記録を追加';
+  paintPresetBar(!t);
   $('#fAmt').value = ed.amount ? Number(ed.amount).toLocaleString('ja-JP') : '';
   $('#fDate').value = ed.date;
   $('#fMemo').value = ed.memo || '';
@@ -1394,6 +1414,37 @@ $('#delAll').onclick = async () => {
     hide(); render(); toast('これ以降のくり返しを削除しました');
   } catch { $('#txErr').textContent = '削除できませんでした。'; }
 };
+// よく使う入力（プリセット）：新しく記録するときだけ、入力画面の一番上に並べる
+let presetPicked = null;
+function paintPresetBar(show) {
+  const list = state.presets || [];
+  presetPicked = null;
+  $('#presetBar').hidden = !show || !list.length;
+  $('#presetSave').hidden = !show;
+  $('#presetBar').innerHTML = list.map(x => `<button type="button" class="pchip" data-preset="${esc(x.id)}">
+    <b>${esc(x.name)}</b><span class="num">${x.type === 'income' ? '+' : x.type === 'expense' ? '−' : ''}${yen(x.amount)}</span></button>`).join('');
+}
+$('#presetBar').addEventListener('click', e => {
+  const b = e.target.closest('[data-preset]'); if (!b) return;
+  const x = state.presets.find(q => q.id === b.dataset.preset); if (!x) return;
+  ed.type = x.type; ed.amount = String(x.amount); ed.account = x.account; ed.memo = x.memo || '';
+  if (x.type === 'transfer') ed.to = x.to; else ed.cat = x.cat;
+  $('#fAmt').value = Number(x.amount).toLocaleString('ja-JP');
+  $('#fMemo').value = ed.memo;
+  paintForm();
+  document.querySelectorAll('#presetBar .pchip').forEach(c => c.classList.toggle('on', c === b));
+});
+$('#presetSave').onclick = async () => {
+  const amount = Number($('#fAmt').value.replace(/[^\d]/g, ''));
+  if (!amount) { $('#txErr').textContent = '先に金額を入れてください。'; return; }
+  const memo = $('#fMemo').value.trim().slice(0, 40);
+  const c = ed.type !== 'transfer' ? state.cats[ed.type].find(q => q.id === ed.cat) : null;
+  const name = memo || (ed.type === 'transfer' ? `${accName(ed.account)}→${accName(ed.to)}` : c?.name || 'よく使う入力');
+  const x = { id: uid(), name, type: ed.type, amount, account: ed.account, memo };
+  if (ed.type === 'transfer') x.to = ed.to; else { x.cat = c?.id; x.category = c?.name; }
+  try { await store.saveBook({ presets: [...(state.presets || []), x] }); paintPresetBar(true); toast(`「${name}」を登録しました`); }
+  catch { $('#txErr').textContent = '登録できませんでした。'; }
+};
 $('#btnAdd').onclick = () => openTx();
 // 確定する／払った（期限つきは、払った日＝今日の日付で記録）
 async function markPaid(t) {
@@ -1450,7 +1501,8 @@ function openSettings(focus) {
   accDraft = state.accounts.map(a => ({ ...a }));
   catDraft = cloneCats(state.cats);
   $('#accErr').textContent = '';
-  paintAcc(); paintCats(); paintRules();
+  presetDraft = (state.presets || []).map(x => ({ ...x }));
+  paintAcc(); paintCats(); paintRules(); paintPresetList();
   $('#budAll').value = state.budget ? Number(state.budget).toLocaleString('ja-JP') : '';
   $('#saveGoal').value = state.saveGoal ? Number(state.saveGoal).toLocaleString('ja-JP') : '';
   modeDraft = state.budgetMode; paintMode();
@@ -1535,14 +1587,25 @@ $('#themes').addEventListener('click', e => {
   try { localStorage.setItem('osaifu.color', colorKey); } catch {}
 });
 // 並べ替え（▲▼）
+let presetDraft = [];
+function paintPresetList() {
+  $('#presetList').innerHTML = presetDraft.length ? presetDraft.map((x, i) => `<div class="accrow pre${movedCls('pre', i)}">
+      ${mvBtns('pre', i, presetDraft.length, x.name)}
+      <input data-pi="${i}" value="${esc(x.name)}" placeholder="名前" aria-label="よく使う入力の名前">
+      <span class="pamt num">${x.type === 'income' ? '+' : x.type === 'expense' ? '−' : ''}${yen(x.amount)}</span>
+      <button type="button" data-rmpre="${i}" aria-label="${esc(x.name)}を削除">⊖</button></div>`).join('')
+    : '<div class="empty">まだありません。</div>';
+}
+$('#presetList').addEventListener('input', e => { const i = e.target.dataset.pi; if (i != null) presetDraft[i].name = e.target.value; });
+$('#presetList').addEventListener('click', e => { const r = e.target.closest('[data-rmpre]'); if (r) { presetDraft.splice(Number(r.dataset.rmpre), 1); paintPresetList(); } });
 $('#accSheet').addEventListener('click', e => {
   const b = e.target.closest('[data-mv]'); if (!b || b.disabled) return;
   const [key, i, d] = b.dataset.mv.split(':'); const from = Number(i), to = from + Number(d);
-  const list = key === 'acc' ? accDraft : catDraft[key];
+  const list = key === 'acc' ? accDraft : key === 'pre' ? presetDraft : catDraft[key];
   if (to < 0 || to >= list.length) return;
   [list[from], list[to]] = [list[to], list[from]];
   lastMoved = key + ':' + to;
-  if (key === 'acc') paintAcc(); else paintCats();
+  if (key === 'acc') paintAcc(); else if (key === 'pre') paintPresetList(); else paintCats();
   lastMoved = null;
   const nb = $(`[data-mv="${key}:${to}:${d}"]`);
   (nb && !nb.disabled ? nb : $(`[data-mv="${key}:${to}:${-d}"]`))?.focus();
@@ -1574,7 +1637,8 @@ $('#accSave').onclick = async () => {
   }
   const budget = Number($('#budAll').value.replace(/[^\d]/g, '')) || 0;
   const saveGoal = Number($('#saveGoal').value.replace(/[^\d]/g, '')) || 0;
-  try { await store.saveBook({ accounts: clean, cats, budget, saveGoal, budgetMode: modeDraft }); hide(); render(); toast('保存しました'); }
+  const presets = presetDraft.map(x => ({ ...x, name: (x.name || '').trim().slice(0, 30) || 'よく使う入力' }));
+  try { await store.saveBook({ accounts: clean, cats, budget, saveGoal, budgetMode: modeDraft, presets }); hide(); render(); toast('保存しました'); }
   catch { $('#accErr').textContent = '保存できませんでした。'; }
 };
 
@@ -1585,7 +1649,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261114003339';
+  const APP_VERSION = '20261116075439';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

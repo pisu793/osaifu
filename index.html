@@ -212,6 +212,13 @@ input,select,textarea{font-size:16px}
 .pchip span{font-size:12px;color:var(--sub)}
 .pchip.on{border-color:var(--accent);background:var(--hl);color:var(--hlfg)}
 .pchip.on span{color:var(--hlfg)}
+.pchip.pedit{justify-content:center;color:var(--sub);background:transparent;border-style:dashed}
+.pchip.pedit b{font-weight:600;font-size:13px}
+.pchip.del{border-color:var(--out);color:var(--out)}
+.pchip.del span{color:var(--out);opacity:.7}
+.presetName{display:flex;gap:8px;align-items:center;background:var(--surface);border-radius:12px;padding:6px 6px 6px 14px;margin-bottom:8px}
+.presetName input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;color:var(--fg);outline:none}
+.presetName button{padding:8px 14px;border-radius:9px;background:var(--accent);color:#fff;font-weight:700}
 .presetSave{display:block;width:100%;padding:10px;color:var(--accent);font-weight:600;font-size:14px;text-align:center}
 .accrow.pre{grid-template-columns:30px 1fr auto 32px}
 .accrow.pre .pamt{font-size:13px;color:var(--sub);white-space:nowrap}
@@ -375,7 +382,7 @@ input,select,textarea{font-size:16px}
       <div class="f"><label for="fDate" id="dateLabel">日付</label><input type="date" id="fDate"></div>
       <div class="f" id="rowAcc"><label for="fAcc" id="accLabel">支払い元</label><select id="fAcc"></select></div>
       <div class="f" id="rowTo" hidden><label for="fTo">移動先</label><select id="fTo"></select></div>
-      <div class="f"><label for="fMemo">メモ</label><input id="fMemo" placeholder="なくてもOK" autocomplete="off"></div>
+      <div class="f"><label for="fMemo">名前・メモ</label><input id="fMemo" placeholder="なくてもOK" autocomplete="off"></div>
       <div class="f" id="rowPlan"><label for="fPlan">予定（まだ確定していない）</label><span class="switch"><input type="checkbox" id="fPlan" role="switch"><i></i></span></div>
       <div class="f" id="rowRep"><label for="fRep">毎月くり返す（サブスク・給料など）</label><span class="switch"><input type="checkbox" id="fRep" role="switch"><i></i></span></div>
       <div class="f" id="rowApply" hidden><label for="fApply">これ以降の月にも反映</label><span class="switch"><input type="checkbox" id="fApply" role="switch"><i></i></span></div>
@@ -388,6 +395,10 @@ input,select,textarea{font-size:16px}
     <p class="hint" id="repHint" hidden></p>
     <p class="hint" id="moveHint" hidden>移動は収入にも支出にもカウントされません。口座の残高だけが動きます（例：現金 → 電子マネーにチャージ）。</p>
     <button type="button" class="presetSave" id="presetSave" hidden>☆ この内容をよく使う入力に登録</button>
+    <div class="presetName" id="presetNameRow" hidden>
+      <input id="presetName" placeholder="ボタンの名前（例：電車 行き）" autocomplete="off" aria-label="よく使う入力の名前">
+      <button type="button" id="presetNameOk">登録</button>
+    </div>
     <p class="err" id="txErr"></p>
     <button type="button" class="danger" id="undoPaid" hidden style="color:var(--accent);margin-bottom:8px">「払った」を取り消して予定に戻す</button>
     <button type="button" class="danger" id="txDel" hidden>この記録を削除</button>
@@ -832,8 +843,9 @@ function render() {
     const rowHtml = t => {
       const a = Number(t.amount) || 0;
       const isT = t.type === 'transfer';
-      const title = isT ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : esc(catName(t));
-      const sub = isT ? (t.memo ? esc(t.memo) : '移動') : [esc(accName(t.account)), t.memo && esc(t.memo)].filter(Boolean).join(' ・ ');
+      // 名前（メモ）があれば大きく表示して、ジャンルは下の行へ
+      const title = t.memo ? esc(t.memo) : isT ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : esc(catName(t));
+      const sub = isT ? (t.memo ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : '移動') : [t.memo && esc(catName(t)), esc(accName(t.account))].filter(Boolean).join(' ・ ');
       const icon = t.type === 'expense' ? '−' : t.type === 'income' ? '+' : '⇄';
       const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '';
       return `<div class="row" role="button" tabindex="0" data-edit="${esc(t.id)}">
@@ -1232,7 +1244,7 @@ function openRule(r) {
   planTouched = true;
   ed = { ...r, mode: 'rule', date: r.start, planned: false, rep: true };
   $('#txHead').textContent = '毎月のくり返し';
-  $('#presetBar').hidden = $('#presetSave').hidden = true;
+  $('#presetBar').hidden = $('#presetSave').hidden = $('#presetNameRow').hidden = true;
   $('#txDel').hidden = false; $('#txDel').textContent = 'くり返しをやめる';
   $('#occDel').hidden = $('#occDelHint').hidden = true;
   $('#undoPaid').hidden = true;
@@ -1415,34 +1427,60 @@ $('#delAll').onclick = async () => {
   } catch { $('#txErr').textContent = '削除できませんでした。'; }
 };
 // よく使う入力（プリセット）：新しく記録するときだけ、入力画面の一番上に並べる
-let presetPicked = null;
+let presetPicked = null, presetDelMode = false, presetArmed = null;
 function paintPresetBar(show) {
   const list = state.presets || [];
   presetPicked = null;
-  $('#presetBar').hidden = !show || !list.length;
-  $('#presetSave').hidden = !show;
-  $('#presetBar').innerHTML = list.map(x => `<button type="button" class="pchip" data-preset="${esc(x.id)}">
-    <b>${esc(x.name)}</b><span class="num">${x.type === 'income' ? '+' : x.type === 'expense' ? '−' : ''}${yen(x.amount)}</span></button>`).join('');
+  if (show !== undefined) { presetDelMode = false; presetArmed = null; $('#presetBar').dataset.show = show ? '1' : ''; $('#presetNameRow').hidden = true; }
+  const vis = $('#presetBar').dataset.show === '1';
+  $('#presetBar').hidden = !vis || !list.length;
+  $('#presetSave').hidden = !vis;
+  $('#presetBar').classList.toggle('delmode', presetDelMode);
+  $('#presetBar').innerHTML = list.map(x => `<button type="button" class="pchip${presetDelMode ? ' del' : ''}" data-preset="${esc(x.id)}">
+    <b>${presetDelMode ? (presetArmed === x.id ? 'もう一度で削除' : '× ' + esc(x.name)) : esc(x.name)}</b><span class="num">${x.type === 'income' ? '+' : x.type === 'expense' ? '−' : ''}${yen(x.amount)}</span></button>`).join('')
+    + `<button type="button" class="pchip pedit" id="presetEdit">${presetDelMode ? '<b>完了</b>' : '<b>削除…</b>'}</button>`;
 }
-$('#presetBar').addEventListener('click', e => {
+$('#presetBar').addEventListener('click', async e => {
+  if (e.target.closest('#presetEdit')) { presetDelMode = !presetDelMode; presetArmed = null; paintPresetBar(); return; }
   const b = e.target.closest('[data-preset]'); if (!b) return;
+  if (presetDelMode) {
+    const id = b.dataset.preset;
+    if (presetArmed !== id) { presetArmed = id; paintPresetBar(); return; }
+    const x = state.presets.find(q => q.id === id);
+    try { await store.saveBook({ presets: state.presets.filter(q => q.id !== id) }); presetArmed = null;
+      if (!state.presets.length) presetDelMode = false; paintPresetBar(); toast(`「${x ? x.name : ''}」を削除しました`); }
+    catch { $('#txErr').textContent = '削除できませんでした。'; }
+    return;
+  }
   const x = state.presets.find(q => q.id === b.dataset.preset); if (!x) return;
-  ed.type = x.type; ed.amount = String(x.amount); ed.account = x.account; ed.memo = x.memo || '';
+  ed.type = x.type; ed.amount = String(x.amount); ed.account = x.account; ed.memo = x.memo || x.name || '';
   if (x.type === 'transfer') ed.to = x.to; else ed.cat = x.cat;
   $('#fAmt').value = Number(x.amount).toLocaleString('ja-JP');
   $('#fMemo').value = ed.memo;
   paintForm();
   document.querySelectorAll('#presetBar .pchip').forEach(c => c.classList.toggle('on', c === b));
 });
-$('#presetSave').onclick = async () => {
+$('#presetSave').onclick = () => {
   const amount = Number($('#fAmt').value.replace(/[^\d]/g, ''));
   if (!amount) { $('#txErr').textContent = '先に金額を入れてください。'; return; }
-  const memo = $('#fMemo').value.trim().slice(0, 40);
+  const memo = $('#fMemo').value.trim();
   const c = ed.type !== 'transfer' ? state.cats[ed.type].find(q => q.id === ed.cat) : null;
-  const name = memo || (ed.type === 'transfer' ? `${accName(ed.account)}→${accName(ed.to)}` : c?.name || 'よく使う入力');
+  $('#presetName').value = memo || (ed.type === 'transfer' ? `${accName(ed.account)}→${accName(ed.to)}` : c?.name || '');
+  $('#presetSave').hidden = true; $('#presetNameRow').hidden = false; $('#txErr').textContent = '';
+  setTimeout(() => $('#presetName').focus(), 50);
+};
+$('#presetName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#presetNameOk').click(); } });
+$('#presetNameOk').onclick = async () => {
+  const amount = Number($('#fAmt').value.replace(/[^\d]/g, ''));
+  if (!amount) { $('#txErr').textContent = '先に金額を入れてください。'; return; }
+  const c = ed.type !== 'transfer' ? state.cats[ed.type].find(q => q.id === ed.cat) : null;
+  const name = $('#presetName').value.trim().slice(0, 30) || c?.name || 'よく使う入力';
+  // 名前はそのまま記録の名前（メモ）としても入る
+  const memo = name;
+  if (!$('#fMemo').value.trim()) { $('#fMemo').value = memo; ed.memo = memo; }
   const x = { id: uid(), name, type: ed.type, amount, account: ed.account, memo };
   if (ed.type === 'transfer') x.to = ed.to; else { x.cat = c?.id; x.category = c?.name; }
-  try { await store.saveBook({ presets: [...(state.presets || []), x] }); paintPresetBar(true); toast(`「${name}」を登録しました`); }
+  try { await store.saveBook({ presets: [...(state.presets || []), x] }); $('#presetNameRow').hidden = true; paintPresetBar(); toast(`「${name}」を登録しました`); }
   catch { $('#txErr').textContent = '登録できませんでした。'; }
 };
 $('#btnAdd').onclick = () => openTx();
@@ -1637,7 +1675,7 @@ $('#accSave').onclick = async () => {
   }
   const budget = Number($('#budAll').value.replace(/[^\d]/g, '')) || 0;
   const saveGoal = Number($('#saveGoal').value.replace(/[^\d]/g, '')) || 0;
-  const presets = presetDraft.map(x => ({ ...x, name: (x.name || '').trim().slice(0, 30) || 'よく使う入力' }));
+  const presets = presetDraft.map(x => { const name = (x.name || '').trim().slice(0, 30) || 'よく使う入力'; return { ...x, name, memo: name }; });
   try { await store.saveBook({ accounts: clean, cats, budget, saveGoal, budgetMode: modeDraft, presets }); hide(); render(); toast('保存しました'); }
   catch { $('#accErr').textContent = '保存できませんでした。'; }
 };
@@ -1649,7 +1687,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261116075439';
+  const APP_VERSION = '20261116081211';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

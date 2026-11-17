@@ -125,7 +125,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .sbar h3{margin:0;font-size:16px}
 .sbar button{color:var(--accent);font-size:16px}
 .sbar .save{font-weight:700}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-radius:9px;padding:2px;gap:2px;margin-block:4px 14px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);background:var(--surface);border-radius:9px;padding:2px;gap:2px;margin-block:4px 14px}
 .seg button{padding:7px 0;border-radius:7px;font-size:14px;font-weight:600;color:var(--sub)}
 .seg button[aria-pressed="true"]{background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 :root[data-theme="dark"] .seg button[aria-pressed="true"]{background:#3a3a3c}
@@ -365,6 +365,7 @@ input,select,textarea{font-size:16px}
     <button type="button" class="revlink" id="revOpen">📒 この月のふりかえりを見る</button>
     <div class="shead"><h2>ジャンル別の支出</h2><button type="button" class="edit" data-settings="cats">ジャンルを編集</button></div>
     <div class="seg" role="group" aria-label="集計する期間" id="anaSeg">
+      <button type="button" data-ana="day">日</button>
       <button type="button" data-ana="week">週</button>
       <button type="button" data-ana="month">月</button>
       <button type="button" data-ana="year">年</button>
@@ -1186,6 +1187,10 @@ $('#revCard').addEventListener('click', e => {
 /* ---------- analysis: share of expenses by category, per week / month / year ---------- */
 function periodRange() {
   const d = new Date(state.sel + 'T00:00:00');
+  if (state.ana === 'day') {
+    const yr = d.getFullYear() !== now.getFullYear() ? `${d.getFullYear()}年` : '';
+    return { from: state.sel, to: state.sel, label: `${yr}${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）${state.sel === state.today ? ' 今日' : ''}` };
+  }
   if (state.ana === 'week') {
     const s = new Date(d); s.setDate(d.getDate() - d.getDay());
     const e = new Date(s); e.setDate(s.getDate() + 6);
@@ -1202,12 +1207,13 @@ function periodRange() {
 }
 function prevRange() {
   const d = new Date(state.sel + 'T00:00:00');
-  if (state.ana === 'week') { d.setDate(d.getDate() - 7); }
+  if (state.ana === 'day') { d.setDate(d.getDate() - 1); }
+  else if (state.ana === 'week') { d.setDate(d.getDate() - 7); }
   else if (state.ana === 'year') { d.setFullYear(d.getFullYear() - 1); }
   else { d.setDate(1); d.setMonth(d.getMonth() - 1); }
   const keep = state.sel; state.sel = ymd(d);
   const r = periodRange(); state.sel = keep;
-  r.name = state.ana === 'week' ? '先週' : state.ana === 'year' ? '去年' : '先月';
+  r.name = state.ana === 'day' ? '前の日' : state.ana === 'week' ? '先週' : state.ana === 'year' ? '去年' : '先月';
   return r;
 }
 function arcPath(cx, cy, r, a0, a1) {
@@ -1301,8 +1307,8 @@ $('#anaSeg').addEventListener('click', e => {
 });
 function movePeriod(dir) {
   state.anaFocus = null;
-  if (state.ana === 'week') {
-    const d = new Date(state.sel + 'T00:00:00'); d.setDate(d.getDate() + 7 * dir);
+  if (state.ana === 'week' || state.ana === 'day') {
+    const d = new Date(state.sel + 'T00:00:00'); d.setDate(d.getDate() + (state.ana === 'day' ? 1 : 7) * dir);
     state.sel = ymd(d); state.y = d.getFullYear(); state.m = d.getMonth(); render();
   } else shiftMonth(state.ana === 'year' ? 12 * dir : dir);
 }
@@ -1950,7 +1956,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261117103210';
+  const APP_VERSION = '20261117140357';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

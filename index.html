@@ -216,9 +216,37 @@ input,select,textarea{font-size:16px}
 .pchip.pedit b{font-weight:600;font-size:13px}
 .pchip.del{border-color:var(--out);color:var(--out)}
 .pchip.del span{color:var(--out);opacity:.7}
+/* monthly review */
+.revcard{display:flex;align-items:center;gap:10px;background:var(--hl);color:var(--hlfg);border-radius:12px;padding:11px 12px;margin-top:12px}
+.revcard .rt{flex:1;font-size:14px;line-height:1.45}
+.revcard .rt b{font-weight:700}
+.revcard button{font-weight:700;font-size:13.5px;color:var(--hlfg)}
+.revcard .rgo{background:var(--bg);border-radius:9px;padding:7px 12px}
+.revlink{display:block;width:100%;text-align:center;padding:10px;margin-bottom:10px;border-radius:12px;background:var(--surface);color:var(--accent);font-weight:600;font-size:14px}
+.rev h4{margin:18px 4px 8px;font-size:13px;color:var(--sub);font-weight:600;letter-spacing:.04em}
+.revhero{background:var(--hl);color:var(--hlfg);border-radius:16px;padding:16px;text-align:center}
+.revhero .rl{font-size:13px;opacity:.85}
+.revhero .rv{font-size:30px;font-weight:800;margin:2px 0}
+.revhero .rc{font-size:13.5px;line-height:1.5}
+.revgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.revgrid div{background:var(--surface);border-radius:12px;padding:10px 12px}
+.revgrid span{display:block;font-size:12px;color:var(--sub)}
+.revgrid b{font-size:17px}
+.revrow{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--line);font-size:14.5px}
+.revrow:first-child{border-top:0}
+.revrow .rr{font-weight:600;white-space:nowrap}
+.revnote{font-size:13.5px;line-height:1.6;background:var(--surface);border-radius:12px;padding:12px 14px}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.bkconfirm{background:var(--warnbg);color:var(--warnfg);border-radius:12px;padding:12px;margin-top:8px;font-size:14px;line-height:1.5}
+.bkconfirm p{margin:0 0 10px}
+#accSheet .row .chev{color:var(--sub);font-size:20px}
 .presetName{display:flex;gap:8px;align-items:center;background:var(--surface);border-radius:12px;padding:6px 6px 6px 14px;margin-bottom:8px}
 .presetName input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;color:var(--fg);outline:none}
 .presetName button{padding:8px 14px;border-radius:9px;background:var(--accent);color:#fff;font-weight:700}
+.calc{display:flex;align-items:center;gap:6px;margin:-6px 0 14px}
+.calc button{width:38px;height:32px;border-radius:9px;background:var(--surface);font-size:17px;font-weight:600;color:var(--fg)}
+.calc button:active{background:var(--line)}
+.calc .calcres{margin-left:auto;font-size:15px;font-weight:700;color:var(--accent)}
 .presetSave{display:block;width:100%;padding:10px;color:var(--accent);font-weight:600;font-size:14px;text-align:center}
 .accrow.pre{grid-template-columns:30px 1fr auto 32px}
 .accrow.pre .pamt{font-size:13px;color:var(--sub);white-space:nowrap}
@@ -312,6 +340,8 @@ input,select,textarea{font-size:16px}
 
 <main class="wrap pad">
   <div class="alerts" id="alerts" aria-live="polite"></div>
+  <div class="revcard" id="revCard" hidden></div>
+  <div class="revcard" id="bkCard" hidden></div>
   <div class="summary">
     <div class="sum"><b>収入</b><span class="num" id="sIn" style="color:var(--in)">¥0</span></div>
     <div class="sum"><b>支出</b><span class="num" id="sOut" style="color:var(--out)">¥0</span></div>
@@ -332,6 +362,7 @@ input,select,textarea{font-size:16px}
   </section>
 
   <section class="section">
+    <button type="button" class="revlink" id="revOpen">📒 この月のふりかえりを見る</button>
     <div class="shead"><h2>ジャンル別の支出</h2><button type="button" class="edit" data-settings="cats">ジャンルを編集</button></div>
     <div class="seg" role="group" aria-label="集計する期間" id="anaSeg">
       <button type="button" data-ana="week">週</button>
@@ -377,6 +408,12 @@ input,select,textarea{font-size:16px}
     </div>
     <div class="repinfo" id="repInfo" hidden><span id="repInfoText"></span><button type="button" id="repEdit">くり返しの設定を変える</button></div>
     <div class="amtbox"><span>¥</span><input id="fAmt" inputmode="numeric" autocomplete="off" placeholder="0" aria-label="金額"></div>
+    <div class="calc" role="group" aria-label="計算">
+      <button type="button" data-op="+">＋</button><button type="button" data-op="-">−</button>
+      <button type="button" data-op="×">×</button><button type="button" data-op="÷">÷</button>
+      <button type="button" data-op="back" aria-label="1文字消す">⌫</button>
+      <span class="calcres num" id="calcRes" aria-live="polite"></span>
+    </div>
     <div id="catWrap"><p class="lbl">カテゴリ</p><div class="chips" id="cats"></div></div>
     <div class="form">
       <div class="f"><label for="fDate" id="dateLabel">日付</label><input type="date" id="fDate"></div>
@@ -410,6 +447,13 @@ input,select,textarea{font-size:16px}
   </div>
 </div>
 
+<div class="sheet" id="revSheet" role="dialog" aria-modal="true" aria-labelledby="revHead" hidden>
+  <div class="in pad">
+    <div class="sbar"><span style="width:60px"></span><h3 id="revHead">ふりかえり</h3><button type="button" data-close>閉じる</button></div>
+    <div id="revBody"></div>
+  </div>
+</div>
+
 <div class="sheet" id="accSheet" role="dialog" aria-modal="true" aria-labelledby="accHead" hidden>
   <div class="in pad">
     <div class="sbar">
@@ -420,6 +464,17 @@ input,select,textarea{font-size:16px}
     <p class="lbl">テーマカラー</p>
     <div class="themes" id="themes" role="group" aria-label="テーマカラー"></div>
     <p class="hint">テーマカラーはタップするとすぐ反映されます。</p>
+    <p class="lbl sublbl" id="secBackup">バックアップ</p>
+    <div class="list">
+      <button type="button" class="row" id="bkSave"><span class="rmain"><span class="rtitle">バックアップを保存</span><span class="rsub" style="display:block" id="bkLast">まだ保存していません</span></span><span class="chev" aria-hidden="true">›</span></button>
+      <button type="button" class="row" id="bkLoad" style="border-top:1px solid var(--line)"><span class="rmain"><span class="rtitle">バックアップから戻す</span><span class="rsub" style="display:block">保存したファイルを選びます</span></span><span class="chev" aria-hidden="true">›</span></button>
+    </div>
+    <input type="file" id="bkFile" accept=".json,application/json,text/plain" class="vh" tabindex="-1" aria-hidden="true">
+    <div class="bkconfirm" id="bkConfirm" hidden>
+      <p id="bkConfirmText"></p>
+      <div class="delpair"><button type="button" class="danger" id="bkCancel" style="color:var(--fg)">やめる</button><button type="button" class="danger" id="bkApply">今のデータと入れかえる</button></div>
+    </div>
+    <p class="hint">記録・口座・ジャンル・予算・くり返し・よく使う入力をまとめて1つのファイルにします。「ファイル」アプリやiCloud Driveに保存しておくと、機種変更のときも戻せます。</p>
     <p class="lbl sublbl" id="secAcc">口座・おさいふ（名前 ／ はじめの残高）</p>
     <div class="form" id="accList"></div>
     <p class="hint">名前はタップして書き換えられます。はじめの残高に今の手持ち額を入れておくと、残高が実際の金額と合います。</p>
@@ -875,6 +930,8 @@ function render() {
   }
 
   renderBudget();
+  renderRevCard();
+  renderBkCard();
   renderAnalysis();
   paintRules();
 
@@ -970,6 +1027,161 @@ function renderBudget() {
   $('#budList').innerHTML = head + mainRow
     + withBud.map(c => budRow('', c.name, spent[c.id] || 0, plan[c.id] || 0, Number(c.budget), '')).join('');
 }
+
+/* ---------- backup ---------- */
+const BK_KEYS = ['txs', 'accounts', 'cats', 'budget', 'budgetMode', 'saveGoal', 'rules', 'presets'];
+function backupData() {
+  const o = { app: 'osaifu-calendar', version: 1, savedAt: new Date().toISOString() };
+  BK_KEYS.forEach(k => o[k] = state[k]);
+  try { o.color = localStorage.getItem('osaifu.color') || 'red'; } catch {}
+  return o;
+}
+function paintBkLast() {
+  let t = null; try { t = localStorage.getItem('osaifu.lastBackup'); } catch {}
+  $('#bkLast').textContent = t ? `前回：${new Date(t).toLocaleDateString('ja-JP')}（${state.txs.length}件の記録）` : 'まだ保存していません';
+}
+$('#bkSave').onclick = async () => {
+  const json = JSON.stringify(backupData());
+  const name = `osaifu-backup-${state.today}.json`;
+  const done = () => { try { localStorage.setItem('osaifu.lastBackup', new Date().toISOString()); } catch {} paintBkLast(); renderBkCard(); toast('バックアップを保存しました'); };
+  // claude.ai で開いているときは、claude.ai のファイル保存を使う
+  try {
+    const dl = window.claude?.use ? await window.claude.use('downloads') : null;
+    if (dl) { await dl.save({ filename: name, data: json }); done(); return; }
+  } catch (e) { if (window.claude?.use) { $('#accErr').textContent = '保存がキャンセルされました。'; return; } }
+  try {
+    const file = new File([json], name, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); done(); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try {
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000); done(); return;
+  } catch {}
+  try { await navigator.clipboard.writeText(json); done(); toast('バックアップをコピーしました（メモなどに貼って保存してください）'); }
+  catch { $('#accErr').textContent = 'この画面ではバックアップを保存できませんでした。'; }
+};
+let bkPending = null;
+$('#bkLoad').onclick = () => $('#bkFile').click();
+$('#bkFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (d.app !== 'osaifu-calendar' || !Array.isArray(d.txs)) throw new Error('format');
+    bkPending = d;
+    $('#bkConfirmText').innerHTML = `${d.savedAt ? new Date(d.savedAt).toLocaleDateString('ja-JP') + 'に保存した' : ''}バックアップ（記録 <b>${d.txs.length}件</b>）を読み込みます。<br>今のデータ（記録 ${state.txs.length}件）は、このバックアップの内容に置きかわります。`;
+    $('#bkConfirm').hidden = false;
+  } catch { $('#accErr').textContent = 'このファイルは読み込めませんでした。おさいふカレンダーのバックアップファイルを選んでください。'; }
+});
+$('#bkCancel').onclick = () => { bkPending = null; $('#bkConfirm').hidden = true; };
+$('#bkApply').onclick = async () => {
+  const d = bkPending; if (!d) return;
+  try {
+    for (const t of state.txs.slice()) if (!d.txs.some(x => x.id === t.id)) await store.delTx(t.id);
+    for (const t of d.txs) await store.saveTx(t);
+    await store.saveBook({ accounts: d.accounts || DEFAULT_ACCOUNTS.slice(), cats: d.cats ? cloneCats(d.cats) : cloneCats(DEFAULT_CATS),
+      budget: Number(d.budget) || 0, budgetMode: d.budgetMode === 'save' ? 'save' : 'amount', saveGoal: Number(d.saveGoal) || 0,
+      rules: Array.isArray(d.rules) ? d.rules : [], presets: Array.isArray(d.presets) ? d.presets : [] });
+    if (d.color) { colorKey = d.color; applyColor(); try { localStorage.setItem('osaifu.color', colorKey); } catch {} }
+    bkPending = null; $('#bkConfirm').hidden = true;
+    hide(); render(); toast('バックアップから戻しました');
+  } catch { $('#accErr').textContent = '読み込みの途中で失敗しました。もう一度お試しください。'; }
+};
+// 前回のバックアップから30日たったら、上にお知らせ（閉じたら1週間は出さない）
+function renderBkCard() {
+  let last = null, snooze = null;
+  try { last = localStorage.getItem('osaifu.lastBackup'); snooze = localStorage.getItem('osaifu.bkSnooze'); } catch {}
+  const age = last ? (Date.now() - new Date(last).getTime()) / 864e5 : Infinity;
+  const show1 = state.ready && store.kind === 'local' && state.txs.length >= 10 && age >= 30 && !(snooze && Date.now() < Number(snooze));
+  $('#bkCard').hidden = !show1;
+  if (show1) $('#bkCard').innerHTML = `<span class="rt">💾 ${last ? '前回のバックアップから30日たちました' : 'データのバックアップをとっておきましょう'}</span>
+    <button type="button" class="rgo" data-bk="go">保存</button><button type="button" data-bk="later" aria-label="あとで">×</button>`;
+}
+$('#bkCard').addEventListener('click', e => {
+  const b = e.target.closest('[data-bk]'); if (!b) return;
+  if (b.dataset.bk === 'later') { try { localStorage.setItem('osaifu.bkSnooze', String(Date.now() + 7 * 864e5)); } catch {} renderBkCard(); return; }
+  openSettings('backup');
+});
+
+/* ---------- monthly review ---------- */
+function monthStats(y, m) {
+  const mk = `${y}-${pad2(m + 1)}`;
+  let inc = 0, out = 0, n = 0, big = null;
+  const byCat = {};
+  for (const t of state.txs) {
+    if (t.planned || !t.date?.startsWith(mk) || t.type === 'transfer') continue;
+    const a = Number(t.amount) || 0; n++;
+    if (t.type === 'income') inc += a;
+    else { out += a; const c = catName(t); byCat[c] = (byCat[c] || 0) + a; if (!big || a > big.amount) big = t; }
+  }
+  return { inc, out, net: inc - out, n, byCat, big };
+}
+function renderReview(y, m) {
+  const cur = monthStats(y, m);
+  const pd = new Date(y, m - 1, 1), prev = monthStats(pd.getFullYear(), pd.getMonth());
+  const lbl = `${m + 1}月`, plbl = `${pd.getMonth() + 1}月`;
+  $('#revHead').textContent = `${y}年${lbl}のふりかえり`;
+  if (!cur.n) { $('#revBody').innerHTML = `<div class="empty">${lbl}の確定した記録はまだありません。</div>`; return; }
+  const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + yen(v);
+  const days = (y === now.getFullYear() && m === now.getMonth()) ? Number(state.today.slice(8)) : daysIn(y, m);
+  const cats = Object.entries(cur.byCat).sort((a, b) => b[1] - a[1]);
+  const diffs = Object.keys({ ...cur.byCat, ...prev.byCat }).map(k => [k, (cur.byCat[k] || 0) - (prev.byCat[k] || 0)]).sort((a, b) => b[1] - a[1]);
+  const up = diffs.find(d => d[1] > 0), down = diffs.slice().reverse().find(d => d[1] < 0);
+  // 予算・貯金目標の結果
+  let goal = '';
+  if (state.budgetMode === 'save' && state.saveGoal > 0) {
+    const ok = cur.net >= state.saveGoal;
+    goal = `<div class="revrow"><span>貯金目標 ${yen(state.saveGoal)}</span><span class="rr" style="color:${ok ? 'var(--in)' : 'var(--out)'}">${ok ? '達成！' : 'あと ' + yen(state.saveGoal - cur.net)}</span></div>`;
+  } else if (state.budget > 0) {
+    const excl = new Set(state.cats.expense.filter(c => c.noTotal).map(c => c.name));
+    const used = cats.filter(([k]) => !excl.has(k)).reduce((s, [, v]) => s + v, 0);
+    const ok = used <= state.budget;
+    goal = `<div class="revrow"><span>予算 ${yen(state.budget)}</span><span class="rr" style="color:${ok ? 'var(--in)' : 'var(--out)'}">${ok ? yen(state.budget - used) + ' 残せた' : yen(used - state.budget) + ' オーバー'}</span></div>`;
+  }
+  const outDiff = prev.out ? cur.out - prev.out : null;
+  // ひとこと
+  const notes = [];
+  if (cur.net > 0) notes.push(`${lbl}は <b>${yen(cur.net)}</b> の黒字でした。いい感じです！`);
+  else if (cur.net < 0) notes.push(`${lbl}は <b>${yen(-cur.net)}</b> の赤字でした。来月は少しだけ意識してみましょう。`);
+  if (outDiff != null && outDiff < 0) notes.push(`支出は${plbl}より <b>${yen(-outDiff)}</b> 減りました。`);
+  if (outDiff != null && outDiff > 0) notes.push(`支出は${plbl}より <b>${yen(outDiff)}</b> 増えました。`);
+  if (up && prev.n) notes.push(`いちばん増えたのは「${esc(up[0])}」（+${yen(up[1])}）です。`);
+  if (down && prev.n) notes.push(`「${esc(down[0])}」は ${yen(-down[1])} 減らせました。`);
+  $('#revBody').innerHTML = `<div class="rev">
+    <div class="revhero"><div class="rl">${lbl}に残ったお金（収入 − 支出）</div>
+      <div class="rv num">${sgn(cur.net)}</div>
+      <div class="rc num">収入 ${yen(cur.inc)}　支出 ${yen(cur.out)}${outDiff != null ? `<br>支出は${plbl}より ${outDiff > 0 ? '▲ +' : outDiff < 0 ? '▼ −' : '±'}${yen(outDiff)}` : ''}</div></div>
+    <div class="revgrid">
+      <div><span>1日あたりの支出</span><b class="num">${yen(Math.round(cur.out / days))}</b></div>
+      <div><span>記録した回数</span><b class="num">${cur.n}回</b></div>
+    </div>
+    ${goal ? `<h4>目標</h4><div class="list">${goal}</div>` : ''}
+    <h4>よく使ったジャンル</h4>
+    <div class="list">${cats.slice(0, 3).map(([k, v], i) => `<div class="revrow"><span>${i + 1}. ${esc(k)}</span><span class="rr num">${yen(v)}<small style="color:var(--sub);font-weight:500"> ${cur.out ? Math.round(v / cur.out * 100) : 0}%</small></span></div>`).join('') || '<div class="empty">支出はありません</div>'}</div>
+    ${cur.big ? `<h4>いちばん大きな支出</h4><div class="list"><div class="revrow"><span>${esc(cur.big.memo || catName(cur.big))}（${md(cur.big.date)}）</span><span class="rr num">${yen(cur.big.amount)}</span></div></div>` : ''}
+    <h4>ひとこと</h4><div class="revnote">${notes.join('<br>')}</div>
+  </div>`;
+}
+function openReview(y, m) { renderReview(y, m); show($('#revSheet')); $('#revSheet').scrollTop = 0; }
+$('#revOpen').onclick = () => openReview(state.y, state.m);
+// 月が変わってから1週間は、先月のふりかえりのお知らせを上に出す（閉じたら出さない）
+function renderRevCard() {
+  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+  let seen = null; try { seen = localStorage.getItem('osaifu.revSeen'); } catch {}
+  const show1 = state.ready && Number(state.today.slice(8)) <= 7 && seen !== key && monthStats(d.getFullYear(), d.getMonth()).n > 0;
+  $('#revCard').hidden = !show1;
+  if (show1) $('#revCard').innerHTML = `<span class="rt">📒 <b>${d.getMonth() + 1}月のふりかえり</b>ができました</span>
+    <button type="button" class="rgo" data-rev="${key}">見る</button><button type="button" data-revclose="${key}" aria-label="閉じる">×</button>`;
+}
+$('#revCard').addEventListener('click', e => {
+  const g = e.target.closest('[data-rev]'), c = e.target.closest('[data-revclose]');
+  const key = (g || c)?.dataset.rev || (g || c)?.dataset.revclose; if (!key) return;
+  try { localStorage.setItem('osaifu.revSeen', key); } catch {}
+  $('#revCard').hidden = true;
+  if (g) { const [yy, mm] = key.split('-').map(Number); openReview(yy, mm - 1); }
+});
 
 /* ---------- analysis: share of expenses by category, per week / month / year ---------- */
 function periodRange() {
@@ -1233,7 +1445,7 @@ function paintRep() {
     + (ed.avg ? '金額は、実際に確定した直近3回の平均で予想します（最初は入れた金額）。' : '') : '';
 }
 function fillSheet() {
-  $('#fAmt').value = ed.amount ? Number(ed.amount).toLocaleString('ja-JP') : '';
+  $('#fAmt').value = ed.amount ? Number(ed.amount).toLocaleString('ja-JP') : ''; paintCalc();
   $('#fDate').value = ed.date;
   $('#fMemo').value = ed.memo || '';
   $('#txErr').textContent = '';
@@ -1259,7 +1471,7 @@ function openTx(t, prefill) {
     ed.cat = (state.cats[t.type] || []).find(c => c.name === t.category)?.id;
   $('#txHead').textContent = t ? '記録を編集' : '記録を追加';
   paintPresetBar(!t);
-  $('#fAmt').value = ed.amount ? Number(ed.amount).toLocaleString('ja-JP') : '';
+  $('#fAmt').value = ed.amount ? Number(ed.amount).toLocaleString('ja-JP') : ''; paintCalc();
   $('#fDate').value = ed.date;
   $('#fMemo').value = ed.memo || '';
   $('#txErr').textContent = '';
@@ -1274,9 +1486,59 @@ function openTx(t, prefill) {
 }
 document.querySelectorAll('.seg [data-type]').forEach(b => b.onclick = () => { ed.type = b.dataset.type; paintForm(); });
 $('#cats').addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { ed.cat = c.dataset.cat; paintForm(); } });
+// 金額の計算：「178×2」「500+300」のような式が使える（保存するときに計算した結果になる）
+function normAmt(v) {
+  return String(v).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/[＋]/g, '+').replace(/[−ー－]/g, '-').replace(/[*＊xX]/g, '×').replace(/[/／]/g, '÷').replace(/[^\d+\-×÷.]/g, '');
+}
+function evalAmt(v) {
+  const src = normAmt(v);
+  if (!src) return 0;
+  const toks = src.match(/\d+(?:\.\d+)?|[+\-×÷]/g) || [];
+  // 掛け算・割り算を先に、それから足し算・引き算
+  const terms = []; let ops = [], cur = null, op = '+';
+  const nums = [], sign = [];
+  let i = 0, acc = null, pend = null;
+  const flush = () => { if (acc != null) { nums.push(acc); sign.push(op); } acc = null; };
+  for (const t of toks) {
+    if (/^\d/.test(t)) {
+      const n = Number(t);
+      if (acc == null) acc = n;
+      else if (pend === '×') acc *= n;
+      else if (pend === '÷') acc = n ? acc / n : acc;
+      pend = null;
+    } else if (t === '×' || t === '÷') pend = t;
+    else { flush(); op = t; pend = null; }
+  }
+  flush();
+  const total = nums.reduce((s, n, k) => s + (sign[k] === '-' ? -n : n), 0);
+  return Math.max(0, Math.round(total));
+}
+const hasOp = v => /[+\-×÷]/.test(normAmt(v).replace(/^-/, ''));
+function amountValue() { return evalAmt($('#fAmt').value); }
+function paintCalc() {
+  const v = $('#fAmt').value;
+  $('#calcRes').textContent = hasOp(v) ? '= ' + yen(evalAmt(v)) : '';
+}
 $('#fAmt').addEventListener('input', e => {
-  const d = e.target.value.replace(/[^\d０-９]/g, '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
-  e.target.value = d ? Number(d).toLocaleString('ja-JP') : '';
+  const v = normAmt(e.target.value);
+  e.target.value = hasOp(v) ? v : (v.replace(/\D/g, '') ? Number(v.replace(/\D/g, '')).toLocaleString('ja-JP') : '');
+  paintCalc();
+});
+$('#fAmt').addEventListener('blur', () => {
+  // 式を入れたあと欄から出たら、結果に置きかえる
+  const v = $('#fAmt').value;
+  if (hasOp(v)) { const n = evalAmt(v); $('#fAmt').value = n ? n.toLocaleString('ja-JP') : ''; paintCalc(); }
+});
+document.querySelector('.calc').addEventListener('pointerdown', e => { if (e.target.closest('[data-op]')) e.preventDefault(); });
+document.querySelector('.calc').addEventListener('click', e => {
+  const b = e.target.closest('[data-op]'); if (!b) return;
+  const el = $('#fAmt');
+  let v = hasOp(el.value) ? normAmt(el.value) : normAmt(el.value.replace(/,/g, ''));
+  if (b.dataset.op === 'back') v = v.slice(0, -1);
+  else { if (/[+\-×÷]$/.test(v)) v = v.slice(0, -1); if (v) v += b.dataset.op; }
+  el.value = hasOp(v) ? v : (v ? Number(v).toLocaleString('ja-JP') : '');
+  paintCalc(); el.focus();
 });
 $('#fAcc').onchange = e => { ed.account = e.target.value; if (ed.type === 'transfer') paintForm(); };
 $('#fTo').onchange = e => { ed.to = e.target.value; };
@@ -1291,7 +1553,7 @@ $('#repEdit').onclick = () => { const r = state.rules.find(x => x.id === ed.rid)
 $('#fPlan').onchange = e => { planTouched = true; ed.planned = e.target.checked; };
 
 $('#txSave').onclick = async () => {
-  const amount = Number($('#fAmt').value.replace(/[^\d]/g, ''));
+  const amount = amountValue();
   ed.date = $('#fDate').value; ed.memo = $('#fMemo').value.trim().slice(0, 200);
   if (!amount) { $('#txErr').textContent = '金額を入れてください。'; return; }
   if (!ed.date) { $('#txErr').textContent = '日付を選んでください。'; return; }
@@ -1461,7 +1723,7 @@ $('#presetBar').addEventListener('click', async e => {
   document.querySelectorAll('#presetBar .pchip').forEach(c => c.classList.toggle('on', c === b));
 });
 $('#presetSave').onclick = () => {
-  const amount = Number($('#fAmt').value.replace(/[^\d]/g, ''));
+  const amount = amountValue();
   if (!amount) { $('#txErr').textContent = '先に金額を入れてください。'; return; }
   const memo = $('#fMemo').value.trim();
   const c = ed.type !== 'transfer' ? state.cats[ed.type].find(q => q.id === ed.cat) : null;
@@ -1471,7 +1733,7 @@ $('#presetSave').onclick = () => {
 };
 $('#presetName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#presetNameOk').click(); } });
 $('#presetNameOk').onclick = async () => {
-  const amount = Number($('#fAmt').value.replace(/[^\d]/g, ''));
+  const amount = amountValue();
   if (!amount) { $('#txErr').textContent = '先に金額を入れてください。'; return; }
   const c = ed.type !== 'transfer' ? state.cats[ed.type].find(q => q.id === ed.cat) : null;
   const name = $('#presetName').value.trim().slice(0, 30) || c?.name || 'よく使う入力';
@@ -1546,7 +1808,8 @@ function openSettings(focus) {
   modeDraft = state.budgetMode; paintMode();
   show($('#accSheet'));
   paintThemes();
-  const target = focus === 'cats' ? $('#secCats') : focus === 'acc' ? $('#secAcc') : focus === 'budget' ? $('#secBud') : null;
+  const target = focus === 'cats' ? $('#secCats') : focus === 'acc' ? $('#secAcc') : focus === 'budget' ? $('#secBud') : focus === 'backup' ? $('#secBackup') : null;
+  paintBkLast(); $('#bkConfirm').hidden = true; bkPending = null;
   if (target) setTimeout(() => target.scrollIntoView({ block: 'start', behavior: 'smooth' }), 260);
   else $('#accSheet').scrollTop = 0;
 }
@@ -1687,7 +1950,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261116081211';
+  const APP_VERSION = '20261117103210';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

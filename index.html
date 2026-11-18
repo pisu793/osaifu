@@ -250,6 +250,7 @@ input,select,textarea{font-size:16px}
 .presetSave{display:block;width:100%;padding:10px;color:var(--accent);font-weight:600;font-size:14px;text-align:center}
 .accrow.pre{grid-template-columns:30px 1fr auto 32px}
 .accrow.pre .pamt{font-size:13px;color:var(--sub);white-space:nowrap}
+.rsub .rname{color:var(--fg);font-weight:600;opacity:.8}
 /* day list groups */
 .row.grp .chev{flex:none;color:var(--sub);font-size:20px;transition:transform .15s;margin-left:2px}
 .row.grp.open .chev{transform:rotate(90deg)}
@@ -901,9 +902,10 @@ function render() {
     const rowHtml = t => {
       const a = Number(t.amount) || 0;
       const isT = t.type === 'transfer';
-      // 名前（メモ）があれば大きく表示して、ジャンルは下の行へ
-      const title = t.memo ? esc(t.memo) : isT ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : esc(catName(t));
-      const sub = isT ? (t.memo ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : '移動') : [t.memo && esc(catName(t)), esc(accName(t.account))].filter(Boolean).join(' ・ ');
+      // 上はいつもジャンル。名前（メモ）は下の行に、口座より少し濃く表示
+      const title = isT ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : esc(catName(t));
+      const nm = t.memo ? `<span class="rname">${esc(t.memo)}</span>` : '';
+      const sub = isT ? (nm || '移動') : [nm, esc(accName(t.account))].filter(Boolean).join(' ・ ');
       const icon = t.type === 'expense' ? '−' : t.type === 'income' ? '+' : '⇄';
       const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '';
       return `<div class="row" role="button" tabindex="0" data-edit="${esc(t.id)}">
@@ -1973,7 +1975,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261118040447';
+  const APP_VERSION = '20261118193708';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

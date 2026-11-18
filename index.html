@@ -370,7 +370,8 @@ input,select,textarea{font-size:16px}
       <button type="button" data-ana="month">月</button>
       <button type="button" data-ana="year">年</button>
     </div>
-    <div class="anaNav">
+    <div id="anaSwipe" style="touch-action:pan-y">
+    <div class="anaNav" id="anaNav">
       <button type="button" id="anaPrev" aria-label="前の期間">‹</button>
       <span id="anaLabel" class="num">--</span>
       <button type="button" id="anaNext" aria-label="次の期間">›</button>
@@ -380,6 +381,7 @@ input,select,textarea{font-size:16px}
       <div class="donutCenter" aria-live="polite"><span id="dcLabel">合計</span><b id="dcAmt" class="num">¥0</b><span id="dcPct" class="num"></span><span id="dcDiff" class="dcdiff num"></span></div>
     </div>
     <div class="list" id="brkList"></div>
+    </div>
     <p class="meta" style="font-size:12px;color:var(--sub);margin:8px 4px 0">確定した支出だけを集計しています（予定は含みません）。グラフや行をタップすると詳しく見られます。</p>
   </section>
 
@@ -1307,11 +1309,26 @@ $('#anaSeg').addEventListener('click', e => {
 });
 function movePeriod(dir) {
   state.anaFocus = null;
+  // 上の一覧の長さが変わっても、グラフの位置が動かないようにスクロールを合わせる
+  const anchor = $('#anaNav'), before = anchor.getBoundingClientRect().top;
   if (state.ana === 'week' || state.ana === 'day') {
     const d = new Date(state.sel + 'T00:00:00'); d.setDate(d.getDate() + (state.ana === 'day' ? 1 : 7) * dir);
     state.sel = ymd(d); state.y = d.getFullYear(); state.m = d.getMonth(); render();
   } else shiftMonth(state.ana === 'year' ? 12 * dir : dir);
+  const after = anchor.getBoundingClientRect().top;
+  if (Math.abs(after - before) > 1) window.scrollBy(0, after - before);
 }
+// グラフのあたりを左右にスワイプしても、前後の期間に移動できる
+(() => {
+  const area = $('#anaSwipe'); let t0 = null;
+  area.addEventListener('touchstart', e => { t0 = [e.touches[0].clientX, e.touches[0].clientY]; }, { passive: true });
+  area.addEventListener('touchend', e => {
+    if (!t0) return;
+    const dx = e.changedTouches[0].clientX - t0[0], dy = e.changedTouches[0].clientY - t0[1];
+    t0 = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) movePeriod(dx < 0 ? 1 : -1);
+  });
+})();
 $('#anaPrev').onclick = () => movePeriod(-1);
 $('#anaNext').onclick = () => movePeriod(1);
 
@@ -1956,7 +1973,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261117140357';
+  const APP_VERSION = '20261118040447';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;

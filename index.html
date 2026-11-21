@@ -251,6 +251,12 @@ input,select,textarea{font-size:16px}
 .accrow.pre{grid-template-columns:30px 1fr auto 32px}
 .accrow.pre .pamt{font-size:13px;color:var(--sub);white-space:nowrap}
 .rsub .rname{color:var(--fg);font-weight:600;opacity:.8}
+.bal.tap{cursor:pointer}
+.bal.tap:active{background:var(--line)}
+.bal .chev{color:var(--sub);font-size:18px;margin-left:8px}
+.ico.adjust{background:var(--sub)}
+.ramt.adjust{color:var(--sub)}
+.adjdiff{font-size:14.5px;font-weight:600;margin:-4px 4px 14px;min-height:20px}
 /* day list groups */
 .row.grp .chev{flex:none;color:var(--sub);font-size:20px;transition:transform .15s;margin-left:2px}
 .row.grp.open .chev{transform:rotate(90deg)}
@@ -389,6 +395,7 @@ input,select,textarea{font-size:16px}
   <section class="section">
     <div class="shead"><h2>残高</h2><button type="button" class="edit" data-settings="acc">口座を編集</button></div>
     <p class="meta" id="balNote" style="margin:-4px 0 8px;font-size:12px;color:var(--sub)">大きい数字が今の残高、下の小さい数字が月末までの予定を入れた残高</p>
+    <p class="meta" style="margin:-4px 0 8px;font-size:12px;color:var(--sub)">実際の金額とずれていたら、口座をタップして合わせられます。</p>
     <div class="list" id="balList"></div>
   </section>
 
@@ -448,6 +455,33 @@ input,select,textarea{font-size:16px}
       <button type="button" class="danger" id="delAll">これ以降すべて削除</button>
     </div>
     <p class="hint" id="occDelHint" hidden>「これ以降すべて削除」は、この日から先のくり返しをやめます。前の記録は残ります。</p>
+  </div>
+</div>
+
+<div class="sheet" id="adjSheet" role="dialog" aria-modal="true" aria-labelledby="adjHead" hidden>
+  <div class="in pad">
+    <div class="sbar">
+      <button type="button" data-close>キャンセル</button>
+      <h3 id="adjHead">残高を合わせる</h3>
+      <button type="button" class="save" id="adjSave">保存</button>
+    </div>
+    <div class="form">
+      <div class="f"><span>アプリの残高</span><span class="num" id="adjNow" style="font-weight:600">¥0</span></div>
+    </div>
+    <p class="lbl">実際の残高（財布・アプリ・通帳を見て）</p>
+    <div class="amtbox"><span>¥</span><input id="adjReal" inputmode="numeric" autocomplete="off" placeholder="0" aria-label="実際の残高"></div>
+    <p class="adjdiff num" id="adjDiff"></p>
+    <div id="adjHow" hidden>
+      <p class="lbl">ずれの記録のしかた</p>
+      <div class="seg" role="group" aria-label="記録のしかた" id="adjMode">
+        <button type="button" data-mode="fix">ずれを直すだけ</button>
+        <button type="button" data-mode="tx" id="adjTxBtn">支出として記録</button>
+      </div>
+      <p class="hint" id="adjHint"></p>
+      <div id="adjCatWrap" hidden><p class="lbl">ジャンル</p><div class="chips" id="adjCats"></div></div>
+    </div>
+    <p class="err" id="adjErr"></p>
+    <button type="button" class="danger" id="adjDel" hidden>この残高合わせを取り消す</button>
   </div>
 </div>
 
@@ -755,6 +789,7 @@ function balances(planEnd) {
     const a = Number(t.amount) || 0;
     if (t.type === 'expense') add(t.account, -a, t.planned);
     else if (t.type === 'income') add(t.account, a, t.planned);
+    else if (t.type === 'adjust') add(t.account, Number(t.delta) || 0, t.planned);
     else { add(t.account, -a, t.planned); add(t.to, a, t.planned); }
   }
   return b;
@@ -772,6 +807,7 @@ function shortages() {
   for (const t of plan) {
     const a = Number(t.amount) || 0;
     if (t.type === 'income') { if (bal[t.account] != null) bal[t.account] += a; continue; }
+    if (t.type === 'adjust') { if (bal[t.account] != null) bal[t.account] += Number(t.delta) || 0; continue; }
     if (t.type === 'transfer' && bal[t.to] != null) bal[t.to] += a;
     if (bal[t.account] == null) continue;
     bal[t.account] -= a;
@@ -901,6 +937,13 @@ function render() {
   } else {
     const rowHtml = t => {
       const a = Number(t.amount) || 0;
+      if (t.type === 'adjust') {
+        const dlt = Number(t.delta) || 0;
+        return `<div class="row" role="button" tabindex="0" data-adj="${esc(t.id)}">
+          <span class="ico adjust">±</span>
+          <span class="rmain"><span class="rtitle">残高合わせ</span><span class="rsub" style="display:block">${esc(accName(t.account))}・収支には入りません</span></span>
+          <span style="text-align:right"><div class="ramt num adjust">${dlt > 0 ? '+' : dlt < 0 ? '−' : ''}${yen(dlt)}</div></span></div>`;
+      }
       const isT = t.type === 'transfer';
       // 上はいつもジャンル。名前（メモ）は下の行に、口座より少し濃く表示
       const title = isT ? `${esc(accName(t.account))} → ${esc(accName(t.to))}` : esc(catName(t));
@@ -917,14 +960,14 @@ function render() {
       </div>`;
     };
     // 収入・支出・移動ごとにまとめて、タップで中身を開く
-    const groups = [['income', '収入', '+'], ['expense', '支出', '−'], ['transfer', '移動', '⇄']];
+    const groups = [['income', '収入', '+'], ['expense', '支出', '−'], ['transfer', '移動', '⇄'], ['adjust', '残高合わせ', '±']];
     $('#dayList').innerHTML = groups.map(([type, label, icon]) => {
       const items = dl.filter(t => t.type === type);
       if (!items.length) return '';
       const open = state.openGroups.has(type);
       const sum = items.reduce((s, t) => s + (Number(t.amount) || 0), 0);
       const nPlan = items.filter(t => t.planned).length;
-      const amt = type === 'transfer' ? '' : `<div class="ramt num ${type}">${type === 'expense' ? '-' : '+'}${yen(sum)}</div>`;
+      const amt = type === 'transfer' || type === 'adjust' ? '' : `<div class="ramt num ${type}">${type === 'expense' ? '-' : '+'}${yen(sum)}</div>`;
       return `<div class="row grp${open ? ' open' : ''}" role="button" tabindex="0" aria-expanded="${open}" data-group="${type}">
         <span class="ico ${type}">${icon}</span>
         <span class="rmain"><span class="rtitle">${label}${nPlan ? `<span class="pill">予定${nPlan}件</span>` : ''}</span>
@@ -953,9 +996,9 @@ function render() {
   $('#balList').innerHTML = total + state.accounts.map(a => {
     const v = b[a.id] || { now: 0, plan: 0 };
     const diff = v.plan !== v.now;
-    return `<div class="bal"><span class="bn">${esc(a.name)}</span>
+    return `<div class="bal tap" role="button" tabindex="0" data-acc="${esc(a.id)}" aria-label="${esc(a.name)}の残高を合わせる"><span class="bn">${esc(a.name)}</span>
       <span class="bv num"><div style="color:${v.now < 0 ? 'var(--out)' : 'var(--fg)'}">${v.now < 0 ? '−' : ''}${yen(v.now)}</div>
-      <div>${diff ? endLbl + (v.plan < 0 ? '−' : '') + yen(v.plan) : ''}</div></span></div>`;
+      <div>${diff ? endLbl + (v.plan < 0 ? '−' : '') + yen(v.plan) : ''}</div></span><span class="chev" aria-hidden="true">›</span></div>`;
   }).join('') || '<div class="empty">口座がありません。右上のおさいふアイコンから追加してください。</div>';
 }
 
@@ -1032,6 +1075,93 @@ function renderBudget() {
   $('#budList').innerHTML = head + mainRow
     + withBud.map(c => budRow('', c.name, spent[c.id] || 0, plan[c.id] || 0, Number(c.budget), '')).join('');
 }
+
+/* ---------- balance adjustment (残高合わせ) ---------- */
+let adj = null;
+function openAdj(accId, existing) {
+  const a = state.accounts.find(x => x.id === accId); if (!a) return;
+  const b = balances();
+  adj = { acc: accId, mode: 'fix', cat: null, existing: existing || null };
+  $('#adjHead').textContent = `${a.name}の残高を合わせる`;
+  $('#adjNow').textContent = (b[accId].now < 0 ? '−' : '') + yen(b[accId].now);
+  $('#adjReal').value = ''; $('#adjErr').textContent = '';
+  $('#adjDel').hidden = !existing;
+  $('#adjSave').hidden = !!existing;
+  $('#adjReal').disabled = !!existing;
+  if (existing) {
+    const d = Number(existing.delta) || 0;
+    $('#adjDiff').textContent = `${md(existing.date)}に ${d > 0 ? '+' : '−'}${yen(d)} 合わせました。取り消すと、この分が元に戻ります。`;
+    $('#adjHow').hidden = true;
+  } else paintAdj();
+  show($('#adjSheet'));
+  if (!existing) setTimeout(() => $('#adjReal').focus(), 260);
+}
+function adjDelta() {
+  const v = $('#adjReal').value.trim();
+  if (!v) return null;
+  const neg = /^[-−]/.test(v), n = Number(v.replace(/[^\d]/g, '')) * (neg ? -1 : 1);
+  return n - balances()[adj.acc].now;
+}
+function paintAdj() {
+  const d = adjDelta();
+  $('#adjHow').hidden = !d;
+  if (d == null) { $('#adjDiff').textContent = ''; return; }
+  if (!d) { $('#adjDiff').textContent = 'アプリの残高とぴったりです！'; return; }
+  const less = d < 0;
+  $('#adjDiff').textContent = `アプリより ${yen(d)} ${less ? '少ない' : '多い'}です`;
+  $('#adjDiff').style.color = less ? 'var(--out)' : 'var(--in)';
+  const type = less ? 'expense' : 'income';
+  $('#adjTxBtn').textContent = less ? '支出として記録' : '収入として記録';
+  document.querySelectorAll('#adjMode [data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === adj.mode)));
+  $('#adjHint').textContent = adj.mode === 'fix'
+    ? '残高だけを直します。収入・支出・予算・グラフには入りません（つけ忘れの中身がわからないとき向け）。'
+    : `ずれた分を、今日の${less ? '支出' : '収入'}として記録します。予算やグラフにも入ります。`;
+  $('#adjCatWrap').hidden = adj.mode !== 'tx';
+  if (adj.mode === 'tx') {
+    // 「不明」ジャンルがなければ選べるように先頭に出す（選んで保存したときに作る）
+    const cats = state.cats[type].slice();
+    const unk = cats.find(c => c.name === '不明');
+    if (!unk) cats.unshift({ id: '__unknown', name: '不明' });
+    if (!cats.some(c => c.id === adj.cat)) adj.cat = (unk || cats[0]).id;
+    $('#adjCats').innerHTML = cats.map(c => `<button type="button" class="chip" data-cat="${esc(c.id)}" aria-pressed="${c.id === adj.cat}">${esc(c.name)}</button>`).join('');
+  }
+}
+$('#adjReal').addEventListener('input', e => {
+  const v = e.target.value, neg = /^[-−]/.test(v.trim()), dgt = v.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[^\d]/g, '');
+  e.target.value = (neg ? '-' : '') + (dgt ? Number(dgt).toLocaleString('ja-JP') : '');
+  paintAdj();
+});
+$('#adjMode').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b) { adj.mode = b.dataset.mode; paintAdj(); } });
+$('#adjCats').addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (c) { adj.cat = c.dataset.cat; paintAdj(); } });
+$('#adjSave').onclick = async () => {
+  const d = adjDelta();
+  if (d == null) { $('#adjErr').textContent = '実際の残高を入れてください。'; return; }
+  if (!d) { hide(); toast('ずれはありませんでした'); return; }
+  let t;
+  if (adj.mode === 'fix') t = { id: uid(), type: 'adjust', delta: d, amount: Math.abs(d), date: state.today, account: adj.acc, planned: false, created: Date.now() };
+  else {
+    const type = d < 0 ? 'expense' : 'income';
+    if (adj.cat === '__unknown') {
+      const nc = { id: (type === 'expense' ? 'e' : 'i') + 'unk' + uid(), name: '不明' };
+      const cats = cloneCats(state.cats); cats[type].push(nc);
+      try { await store.saveBook({ cats }); } catch { $('#adjErr').textContent = '保存できませんでした。'; return; }
+      adj.cat = nc.id;
+    }
+    const c = state.cats[type].find(x => x.id === adj.cat);
+    t = { id: uid(), type, amount: Math.abs(d), date: state.today, account: adj.acc, memo: '残高合わせ', cat: c?.id, category: c?.name, planned: false, created: Date.now() };
+  }
+  try { await store.saveTx(t); hide(); render(); toast('残高を合わせました'); }
+  catch { $('#adjErr').textContent = '保存できませんでした。'; }
+};
+let adjDelArmed = false;
+$('#adjDel').onclick = async () => {
+  if (!adjDelArmed) { adjDelArmed = true; $('#adjDel').textContent = 'もう一度タップで取り消す'; return; }
+  adjDelArmed = false; $('#adjDel').textContent = 'この残高合わせを取り消す';
+  try { await store.delTx(adj.existing.id); hide(); render(); toast('残高合わせを取り消しました'); }
+  catch { $('#adjErr').textContent = '取り消せませんでした。'; }
+};
+$('#balList').addEventListener('click', e => { const r = e.target.closest('[data-acc]'); if (r) openAdj(r.dataset.acc); });
+$('#balList').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset.acc) { e.preventDefault(); openAdj(e.target.dataset.acc); } });
 
 /* ---------- backup ---------- */
 const BK_KEYS = ['txs', 'accounts', 'cats', 'budget', 'budgetMode', 'saveGoal', 'rules', 'presets'];
@@ -1115,7 +1245,7 @@ function monthStats(y, m) {
   let inc = 0, out = 0, n = 0, big = null;
   const byCat = {};
   for (const t of state.txs) {
-    if (t.planned || !t.date?.startsWith(mk) || t.type === 'transfer') continue;
+    if (t.planned || !t.date?.startsWith(mk) || (t.type !== 'income' && t.type !== 'expense')) continue;
     const a = Number(t.amount) || 0; n++;
     if (t.type === 'income') inc += a;
     else { out += a; const c = catName(t); byCat[c] = (byCat[c] || 0) + a; if (!big || a > big.amount) big = t; }
@@ -1793,10 +1923,12 @@ $('#dayList').addEventListener('click', async e => {
     return;
   }
   const r = e.target.closest('[data-edit]');
-  if (r) { const t = findTx(r.dataset.edit); if (t) openTx(t); }
+  if (r) { const t = findTx(r.dataset.edit); if (t) openTx(t); return; }
+  const aj = e.target.closest('[data-adj]');
+  if (aj) { const t = state.txs.find(x => x.id === aj.dataset.adj); if (t) openAdj(t.account, t); }
 });
 $('#dayList').addEventListener('keydown', e => {
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-edit],[data-group]')) { e.preventDefault(); e.target.click(); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-edit],[data-group],[data-adj]')) { e.preventDefault(); e.target.click(); }
 });
 
 /* settings: accounts + categories */
@@ -1975,7 +2107,7 @@ init();
 <script>
 /* 自動アップデート：新しい版がGitHubにあれば読み込み直す（データはそのまま） */
 (() => {
-  const APP_VERSION = '20261118193708';
+  const APP_VERSION = '20261121121221';
   let busy = false;
   async function check() {
     if (busy || document.visibilityState !== 'visible') return;
